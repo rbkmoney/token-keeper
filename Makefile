@@ -20,7 +20,8 @@ BUILD_IMAGE_NAME := build-erlang
 BUILD_IMAGE_TAG := 61a001bbb48128895735a3ac35b0858484fdb2eb
 CALL_ANYWHERE := \
 	submodules \
-	all compile xref lint dialyze cover release clean distclean
+	all compile xref lint dialyze cover release clean distclean \
+	check_format format
 
 CALL_W_CONTAINER := $(CALL_ANYWHERE) test
 
@@ -45,6 +46,12 @@ xref:
 
 lint:
 	$(REBAR) lint
+
+check_format:
+	$(REBAR) fmt -c
+
+format:
+	$(REBAR) fmt -w
 
 dialyze:
 	$(REBAR) dialyzer
