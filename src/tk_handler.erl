@@ -31,6 +31,12 @@ handle_function(Op, Args, WoodyCtx, Opts) ->
     State = make_state(WoodyCtx, Opts),
     do_handle_function(Op, Args, State).
 
+do_handle_function('Create', _, _State) ->
+    erlang:error(not_implemented);
+do_handle_function('CreateEphemeral', _, _State) ->
+    erlang:error(not_implemented);
+do_handle_function('AddExistingToken', _, _State) ->
+    erlang:error(not_implemented);
 do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     State1 = save_pulse_metadata(#{token => Token}, State),
     _ = handle_beat(Op, started, State),
@@ -50,7 +56,11 @@ do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
         {error, Reason} ->
             _ = handle_beat(Op, {failed, {token_verification, Reason}}, State1),
             woody_error:raise(business, #token_keeper_InvalidToken{})
-    end.
+    end;
+do_handle_function('Get', _, _State) ->
+    erlang:error(not_implemented);
+do_handle_function('Revoke', _, _State) ->
+    erlang:error(not_implemented).
 
 %% Internal functions
 
