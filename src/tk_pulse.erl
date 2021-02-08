@@ -9,7 +9,8 @@
 -type metadata() :: #{
     token => tokenkeeper:token(),
     token_info => tk_token_jwt:t(),
-    token_source => tokenkeeper:token_source()
+    token_source => tokenkeeper:token_source(),
+    woody_ctx => woody_context:ctx()
 }.
 
 -export_type([beat/0]).

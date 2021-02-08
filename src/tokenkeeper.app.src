@@ -6,7 +6,12 @@
     {applications, [
         kernel,
         stdlib,
-        genlib
+        genlib,
+        woody,
+        jose,
+        token_keeper_proto,
+        bouncer_client,
+        erl_health
     ]},
     {env, []},
     {modules, []},
