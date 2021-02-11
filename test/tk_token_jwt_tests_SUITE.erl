@@ -33,13 +33,13 @@ init_per_suite(Config) ->
                 {storage, scoper_storage_logger}
             ]) ++
             genlib_app:start_application_with(
-                tokenkeeper,
+                token_keeper,
                 [
                     {ip, "127.0.0.1"},
                     {port, 8022},
                     {services, #{
-                        tokenkeeper => #{
-                            path => <<"/v1/keeper">>
+                        token_keeper => #{
+                            path => <<"/v1/token-keeper">>
                         }
                     }},
                     {tokens, #{
@@ -48,6 +48,7 @@ init_per_suite(Config) ->
                                 test => #{
                                     source => {pem_file, get_keysource("keys/local/private.pem", Config)},
                                     metadata => #{
+                                        authority => <<"TEST">>,
                                         auth_method => user_session_token,
                                         user_realm => <<"external">>
                                     }
@@ -69,8 +70,8 @@ end_per_suite(Config) ->
 verify_test(_) ->
     JTI = unique_id(),
     PartyID = <<"TEST">>,
-    {ok, Token} = issue_token(JTI, PartyID, #{<<"TEST">> => <<"TEST">>}, unlimited),
-    {ok, {JTI, PartyID, #{<<"TEST">> := <<"TEST">>}, #{}}} = tk_token_jwt:verify(Token).
+    {ok, Token} = issue_token(JTI, #{<<"sub">> => PartyID, <<"TEST">> => <<"TEST">>}, unlimited),
+    {ok, {JTI, #{<<"sub">> := PartyID, <<"TEST">> := <<"TEST">>}, #{}}} = tk_token_jwt:verify(Token).
 
 -spec bad_token_test(config()) -> _.
 bad_token_test(Config) ->
@@ -81,13 +82,13 @@ bad_token_test(Config) ->
 bad_signee_test(_) ->
     Claims = tk_token_jwt:create_claims(#{}, unlimited),
     {error, nonexistent_key} =
-        tk_token_jwt:issue(unique_id(), <<"TEST">>, Claims, random).
+        tk_token_jwt:issue(unique_id(), Claims, random).
 
 %%
 
-issue_token(JTI, PartyID, Claims0, Expiration) ->
+issue_token(JTI, Claims0, Expiration) ->
     Claims = tk_token_jwt:create_claims(Claims0, Expiration),
-    tk_token_jwt:issue(JTI, PartyID, Claims, test).
+    tk_token_jwt:issue(JTI, Claims, test).
 
 issue_dummy_token(Config) ->
     Claims = #{

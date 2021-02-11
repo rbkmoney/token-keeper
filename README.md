@@ -1,4 +1,4 @@
-tokenkeeper
+token_keeper
 =====
 
 An OTP application

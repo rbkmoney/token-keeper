@@ -20,9 +20,7 @@
     pulse_metadata :: tk_pulse:metadata()
 }).
 
--define(TK_METADATA_NS, <<"com.rbkmoney.tokenkeeper">>).
--define(TK_AUTHORITY_TOKENKEEPER, <<"com.rbkmoney.authority.tokenkeeper">>).
--define(TK_AUTHORITY_KEYCLOAK, <<"com.rbkmoney.authority.keycloak">>).
+-define(TK_METADATA_NS, <<"com.rbkmoney.token-keeper">>).
 
 %%
 
@@ -38,23 +36,22 @@ do_handle_function('CreateEphemeral', _, _State) ->
 do_handle_function('AddExistingToken', _, _State) ->
     erlang:error(not_implemented);
 do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
-    State1 = save_pulse_metadata(#{token => Token}, State),
     _ = handle_beat(Op, started, State),
     case tk_token_jwt:verify(Token) of
         {ok, TokenInfo} ->
             TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
-            State2 = save_pulse_metadata(#{token_info => TokenInfo, token_source => TokenSourceContextDecoded}, State1),
+            State1 = save_pulse_metadata(#{token_info => TokenInfo, token_source => TokenSourceContextDecoded}, State),
             case extract_auth_data(TokenInfo, TokenSourceContextDecoded) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
-                    _ = handle_beat(Op, succeeded, State2),
+                    _ = handle_beat(Op, succeeded, State1),
                     {ok, EncodedAuthData};
                 {error, Reason} ->
-                    _ = handle_beat(Op, {failed, {context_creaton, Reason}}, State2),
+                    _ = handle_beat(Op, {failed, {context_creaton, Reason}}, State1),
                     woody_error:raise(business, #token_keeper_ContextCreationFailed{})
             end;
         {error, Reason} ->
-            _ = handle_beat(Op, {failed, {token_verification, Reason}}, State1),
+            _ = handle_beat(Op, {failed, {token_verification, Reason}}, State),
             woody_error:raise(business, #token_keeper_InvalidToken{})
     end;
 do_handle_function('Get', _, _State) ->
@@ -73,7 +70,6 @@ make_state(WoodyCtx, Opts) ->
 
 extract_auth_data(TokenInfo, TokenSourceContext) ->
     TokenType = determine_token_type(TokenSourceContext),
-    Authority = determine_authority(TokenType),
     case tk_bouncer_context:extract_context_fragment(TokenInfo, TokenType) of
         ContextFragment when ContextFragment =/= undefined ->
             AuthDataPrototype = #{
@@ -81,7 +77,7 @@ extract_auth_data(TokenInfo, TokenSourceContext) ->
                 status => active,
                 context => ContextFragment,
                 metadata => extract_token_metadata(TokenType, TokenInfo),
-                authority => Authority
+                authority => get_authority(TokenInfo)
             },
             {ok, AuthDataPrototype};
         undefined ->
@@ -89,22 +85,21 @@ extract_auth_data(TokenInfo, TokenSourceContext) ->
     end.
 
 determine_token_type(#{request_origin := Origin}) ->
-    UserTokenOrigins = application:get_env(tokenkeeper, user_session_token_origins, []),
+    UserTokenOrigins = application:get_env(token_keeper, user_session_token_origins, []),
     case lists:member(Origin, UserTokenOrigins) of
         true ->
             user_session_token;
         false ->
-            api_key
+            api_key_token
     end;
 determine_token_type(#{}) ->
-    api_key.
+    api_key_token.
 
-determine_authority(user_session_token) ->
-    keycloak;
-determine_authority(api_key) ->
-    tokenkeeper.
+get_authority(TokenInfo) ->
+    Metadata = tk_token_jwt:get_metadata(TokenInfo),
+    maps:get(authority, Metadata).
 
-extract_token_metadata(api_key, TokenInfo) ->
+extract_token_metadata(api_key_token, TokenInfo) ->
     #{
         <<"party_id">> => tk_token_jwt:get_subject_id(TokenInfo)
     };
@@ -118,16 +113,11 @@ encode_auth_data(AuthData) ->
         status = maps:get(status, AuthData),
         context = encode_context_fragment(maps:get(context, AuthData)),
         metadata = encode_metadata(maps:get(metadata, AuthData, undefined)),
-        authority = encode_authority(maps:get(authority, AuthData))
+        authority = maps:get(authority, AuthData)
     }.
 
 encode_metadata(Metadata) ->
     genlib_map:compact(#{?TK_METADATA_NS => Metadata}).
-
-encode_authority(tokenkeeper) ->
-    ?TK_AUTHORITY_TOKENKEEPER;
-encode_authority(keycloak) ->
-    ?TK_AUTHORITY_KEYCLOAK.
 
 encode_context_fragment(ContextFragment) ->
     #bctx_ContextFragment{

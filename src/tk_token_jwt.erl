@@ -5,7 +5,7 @@
 
 %% API
 
--export([issue/4]).
+-export([issue/3]).
 -export([verify/1]).
 
 -export([get_token_id/1]).
@@ -27,7 +27,8 @@
 
 %% API types
 
--type t() :: {token_id(), subject_id(), claims(), metadata()}.
+-type t() :: {token_id(), claims(), metadata()}.
+-type claim() :: expiration() | term().
 -type claims() :: #{binary() => claim()}.
 -type token() :: binary().
 -type expiration() :: unlimited | non_neg_integer().
@@ -39,11 +40,13 @@
 -type auth_method() ::
     user_session_token | api_key_token | detect.
 -type metadata() :: #{
+    authority := binary(),
     auth_method => auth_method(),
     user_realm => realm()
 }.
 
 -export_type([t/0]).
+-export_type([claim/0]).
 -export_type([claims/0]).
 -export_type([token/0]).
 -export_type([expiration/0]).
@@ -57,7 +60,6 @@
 -type kid() :: binary().
 -type key() :: #jose_jwk{}.
 
--type claim() :: expiration() | term().
 -type subject_id() :: binary().
 -type token_id() :: binary().
 
@@ -87,61 +89,59 @@
 %%
 
 -spec get_token_id(t()) -> token_id().
-get_token_id({TokenId, _SubjectID, _Claims, _Metadata}) ->
+get_token_id({TokenId, _Claims, _Metadata}) ->
     TokenId.
 
--spec get_subject_id(t()) -> subject_id().
-get_subject_id({_TokenId, SubjectID, _Claims, _Metadata}) ->
-    SubjectID.
+-spec get_subject_id(t()) -> subject_id() | undefined.
+get_subject_id(T) ->
+    get_claim(?CLAIM_SUBJECT_ID, T, undefined).
 
 -spec get_subject_email(t()) -> binary() | undefined.
 get_subject_email(T) ->
     get_claim(?CLAIM_SUBJECT_EMAIL, T, undefined).
 
 -spec get_expires_at(t()) -> expiration().
-get_expires_at({_TokenId, _Subject, Claims, _Metadata}) ->
+get_expires_at({_TokenId, Claims, _Metadata}) ->
     case maps:get(?CLAIM_EXPIRES_AT, Claims) of
         0 -> unlimited;
         V -> V
     end.
 
 -spec get_claims(t()) -> claims().
-get_claims({_TokenId, _Subject, Claims, _Metadata}) ->
+get_claims({_TokenId, Claims, _Metadata}) ->
     Claims.
 
 -spec get_claim(binary(), t()) -> claim().
-get_claim(ClaimName, {_TokenId, _Subject, Claims, _Metadata}) ->
+get_claim(ClaimName, {_TokenId, Claims, _Metadata}) ->
     maps:get(ClaimName, Claims).
 
 -spec get_claim(binary(), t(), claim()) -> claim().
-get_claim(ClaimName, {_TokenId, _Subject, Claims, _Metadata}, Default) ->
+get_claim(ClaimName, {_TokenId, Claims, _Metadata}, Default) ->
     maps:get(ClaimName, Claims, Default).
 
 -spec get_metadata(t()) -> metadata().
-get_metadata({_TokenId, _Subject, _Claims, Metadata}) ->
+get_metadata({_TokenId, _Claims, Metadata}) ->
     Metadata.
 
 -spec create_claims(claims(), expiration()) -> claims().
 create_claims(Claims, Expiration) ->
-    Claims#{
-        ?CLAIM_EXPIRES_AT => Expiration
-    }.
+    Claims#{?CLAIM_EXPIRES_AT => Expiration}.
 
 -spec set_subject_email(binary(), claims()) -> claims().
-set_subject_email(SubjectID, Claims) ->
+set_subject_email(SubjectEmail, Claims) ->
     false = maps:is_key(?CLAIM_SUBJECT_EMAIL, Claims),
-    Claims#{?CLAIM_SUBJECT_EMAIL => SubjectID}.
+    Claims#{?CLAIM_SUBJECT_EMAIL => SubjectEmail}.
 
 %%
 
--spec issue(token_id(), subject_id(), claims(), keyname()) ->
+-spec issue(token_id(), claims(), keyname()) ->
     {ok, token()}
     | {error, nonexistent_key}
     | {error, {invalid_signee, Reason :: atom()}}.
-issue(JTI, SubjectID, Claims, Signer) ->
+issue(JTI, Claims, Signer) ->
     case try_get_key_for_sign(Signer) of
         {ok, Key} ->
-            FinalClaims = construct_final_claims(SubjectID, Claims, JTI),
+            FinalClaims = construct_final_claims(Claims, JTI),
             sign(Key, FinalClaims);
         {error, Error} ->
             {error, Error}
@@ -157,8 +157,8 @@ try_get_key_for_sign(Keyname) ->
             {error, nonexistent_key}
     end.
 
-construct_final_claims(SubjectID, Claims, JTI) ->
-    Token0 = #{?CLAIM_TOKEN_ID => JTI, ?CLAIM_SUBJECT_ID => SubjectID},
+construct_final_claims(Claims, JTI) ->
+    Token0 = #{?CLAIM_TOKEN_ID => JTI},
     EncodedClaims = maps:map(fun encode_claim/2, Claims),
     maps:merge(EncodedClaims, Token0).
 
@@ -238,14 +238,8 @@ validate_claims(Claims, [{Name, Claim, Validator} | Rest]) ->
 validate_claims(Claims, []) ->
     Claims.
 
-get_result(
-    #{
-        ?CLAIM_TOKEN_ID := TokenID,
-        ?CLAIM_SUBJECT_ID := SubjectID
-    } = Claims,
-    Metadata
-) ->
-    {ok, {TokenID, SubjectID, maps:without([?CLAIM_TOKEN_ID, ?CLAIM_SUBJECT_ID], Claims), Metadata}}.
+get_result(#{?CLAIM_TOKEN_ID := TokenID} = Claims, Metadata) ->
+    {ok, {TokenID, maps:without([?CLAIM_TOKEN_ID], Claims), Metadata}}.
 
 get_kid(#{<<"kid">> := KID}) when is_binary(KID) ->
     KID;
@@ -260,7 +254,6 @@ get_alg(#{}) ->
 get_validators() ->
     [
         {token_id, ?CLAIM_TOKEN_ID, fun check_presence/2},
-        {subject_id, ?CLAIM_SUBJECT_ID, fun check_presence/2},
         {expires_at, ?CLAIM_EXPIRES_AT, fun check_presence/2}
     ].
 
@@ -291,6 +284,7 @@ parse_options(Options) ->
             Metadata = maps:get(metadata, KeyOpts),
             AuthMethod = maps:get(auth_method, Metadata, undefined),
             UserRealm = maps:get(user_realm, Metadata, <<>>),
+            Authority = maps:get(authority, Metadata),
             _ =
                 is_keysource(Source) orelse
                     exit({invalid_source, KeyName, Source}),
@@ -299,7 +293,10 @@ parse_options(Options) ->
                     exit({invalid_auth_method, KeyName, AuthMethod}),
             _ =
                 is_binary(UserRealm) orelse
-                    exit({invalid_user_realm, KeyName, AuthMethod})
+                    exit({invalid_user_realm, KeyName, AuthMethod}),
+            _ =
+                is_binary(Authority) orelse
+                    exit({invalid_authority, KeyName, AuthMethod})
         end,
         Keyset
     ),
@@ -336,7 +333,6 @@ ensure_store_key(KeyName, KeyOpts) ->
         ok ->
             ok;
         {error, Reason} ->
-            _ = logger:error("Error importing key ~p: ~p", [KeyName, Reason]),
             exit({import_error, KeyName, Source, Reason})
     end.
 

@@ -230,10 +230,9 @@ encode_error(Other) ->
     #{details => genlib:format(Other)}.
 
 extract_metadata(Metadata, Acc) ->
-    Acc1 = extract_opt_meta(token, Metadata, fun encode_token/1, Acc),
-    Acc2 = extract_opt_meta(token_info, Metadata, fun encode_token_info/1, Acc1),
-    Acc3 = extract_opt_meta(token_source, Metadata, fun encode_token_source/1, Acc2),
-    extract_woody_ctx(maps:get(woody_ctx, Metadata, undefined), Acc3).
+    Acc1 = extract_opt_meta(token_info, Metadata, fun encode_token_info/1, Acc),
+    Acc2 = extract_opt_meta(token_source, Metadata, fun encode_token_source/1, Acc1),
+    extract_woody_ctx(maps:get(woody_ctx, Metadata, undefined), Acc2).
 
 extract_opt_meta(K, Metadata, EncodeFun, Acc) ->
     case maps:find(K, Metadata) of
@@ -241,13 +240,9 @@ extract_opt_meta(K, Metadata, EncodeFun, Acc) ->
         error -> Acc
     end.
 
-encode_token(Token) when is_binary(Token) ->
-    Token.
-
-encode_token_info({JTI, SubjectID, Claims, TokenMetadata}) ->
+encode_token_info({JTI, Claims, TokenMetadata}) ->
     #{
         jti => JTI,
-        subject_id => SubjectID,
         claims => Claims,
         metadata => TokenMetadata
     }.

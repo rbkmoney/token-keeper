@@ -7,7 +7,7 @@ def finalHook = {
   }
 }
 
-build('tokenkeeper', 'docker-host', finalHook) {
+build('token_keeper', 'docker-host', finalHook) {
   checkoutRepo()
   loadBuildUtils()
 

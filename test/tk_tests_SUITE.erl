@@ -29,9 +29,8 @@
 
 -define(CONFIG(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
 
--define(TK_METADATA_NS, <<"com.rbkmoney.tokenkeeper">>).
--define(TK_AUTHORITY_TOKENKEEPER, <<"com.rbkmoney.authority.tokenkeeper">>).
--define(TK_AUTHORITY_KEYCLOAK, <<"com.rbkmoney.authority.keycloak">>).
+-define(TK_METADATA_NS, <<"com.rbkmoney.token-keeper">>).
+-define(TK_AUTHORITY_TOKEN_KEEPER, <<"com.rbkmoney.authority.token-keeper">>).
 
 -define(PARTY_METADATA(SubjectID), #{?TK_METADATA_NS := #{<<"party_id">> := SubjectID}}).
 
@@ -88,6 +87,7 @@ init_per_group(detect_token_type = Name, C) ->
                     test => #{
                         source => {pem_file, get_keysource("keys/local/private.pem", C)},
                         metadata => #{
+                            authority => ?TK_AUTHORITY_TOKEN_KEEPER,
                             auth_method => detect,
                             user_realm => <<"external">>
                         }
@@ -105,7 +105,9 @@ init_per_group(no_token_metadata = Name, C) ->
                 keyset => #{
                     test => #{
                         source => {pem_file, get_keysource("keys/local/private.pem", C)},
-                        metadata => #{}
+                        metadata => #{
+                            authority => ?TK_AUTHORITY_TOKEN_KEEPER
+                        }
                     }
                 }
             }
@@ -138,21 +140,21 @@ end_per_testcase(_Name, _C) ->
 start_keeper(Env) ->
     IP = "127.0.0.1",
     Port = 8022,
-    Path = <<"/v1/keeper">>,
+    Path = <<"/v1/token-keeper">>,
     Apps = genlib_app:start_application_with(
-        tokenkeeper,
+        token_keeper,
         [
             {ip, IP},
             {port, Port},
             {services, #{
-                tokenkeeper => #{
+                token_keeper => #{
                     path => Path
                 }
             }}
         ] ++ Env
     ),
     Services = #{
-        tokenkeeper => mk_url(IP, Port, Path)
+        token_keeper => mk_url(IP, Port, Path)
     },
     [{group_apps, Apps}, {service_urls, Services}].
 
@@ -169,14 +171,14 @@ detect_api_key_test(C) ->
     Client = mk_client(C),
     JTI = unique_id(),
     SubjectID = <<"TEST">>,
-    {ok, Token} = issue_token(JTI, SubjectID, #{}, unlimited),
+    {ok, Token} = issue_token(JTI, #{<<"sub">> => SubjectID}, unlimited),
     AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
     ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
     ?assertMatch(?PARTY_METADATA(SubjectID), AuthData#token_keeper_AuthData.metadata),
-    ?assertEqual(?TK_AUTHORITY_TOKENKEEPER, AuthData#token_keeper_AuthData.authority).
+    ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_user_session_token_test(config()) -> ok.
 detect_user_session_token_test(C) ->
@@ -184,7 +186,7 @@ detect_user_session_token_test(C) ->
     JTI = unique_id(),
     SubjectID = <<"TEST">>,
     SubjectEmail = <<"test@test.test">>,
-    {ok, Token} = issue_token(JTI, SubjectID, #{<<"email">> => SubjectEmail}, unlimited),
+    {ok, Token} = issue_token(JTI, #{<<"sub">> => SubjectID, <<"email">> => SubjectEmail}, unlimited),
     AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(?USER_TOKEN_SOURCE), Client),
     ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
@@ -196,7 +198,7 @@ detect_user_session_token_test(C) ->
         )
     ),
     ?assertMatch(#{}, AuthData#token_keeper_AuthData.metadata),
-    ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
+    ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_dummy_token_test(config()) -> ok.
 detect_dummy_token_test(C) ->
@@ -210,7 +212,7 @@ no_token_metadata_test(C) ->
     Client = mk_client(C),
     JTI = unique_id(),
     SubjectID = <<"TEST">>,
-    {ok, Token} = issue_token(JTI, SubjectID, #{}, unlimited),
+    {ok, Token} = issue_token(JTI, #{<<"sub">> => SubjectID}, unlimited),
     #token_keeper_ContextCreationFailed{} =
         (catch call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
@@ -222,10 +224,10 @@ mk_client(C) ->
     {WoodyCtx, ServiceURLs}.
 
 call_get_by_token(Token, TokenSourceContext, Client) ->
-    call_tokenkeeper('GetByToken', {Token, TokenSourceContext}, Client).
+    call_token_keeper('GetByToken', {Token, TokenSourceContext}, Client).
 
-call_tokenkeeper(Operation, Args, Client) ->
-    call(tokenkeeper, Operation, Args, Client).
+call_token_keeper(Operation, Args, Client) ->
+    call(token_keeper, Operation, Args, Client).
 
 call(ServiceName, Fn, Args, {WoodyCtx, ServiceURLs}) ->
     Service = get_service_spec(ServiceName),
@@ -240,7 +242,7 @@ call(ServiceName, Fn, Args, {WoodyCtx, ServiceURLs}) ->
             throw(Exception)
     end.
 
-get_service_spec(tokenkeeper) ->
+get_service_spec(token_keeper) ->
     {tk_token_keeper_thrift, 'TokenKeeper'}.
 
 %%
@@ -279,9 +281,9 @@ make_auth_expiration(unlimited) ->
 
 %%
 
-issue_token(JTI, PartyID, Claims0, Expiration) ->
+issue_token(JTI, Claims0, Expiration) ->
     Claims = tk_token_jwt:create_claims(Claims0, Expiration),
-    tk_token_jwt:issue(JTI, PartyID, Claims, test).
+    tk_token_jwt:issue(JTI, Claims, test).
 
 issue_dummy_token(Config) ->
     Claims = #{

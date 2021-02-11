@@ -8,10 +8,10 @@
 
 %% Is extraction from claims a thing here?
 %% Who's the authority for such tokens?
--spec extract_context_fragment(tk_token_jwt:t(), tokenkeeper:token_type()) ->
+-spec extract_context_fragment(tk_token_jwt:t(), token_keeper:token_type()) ->
     bouncer_context_helpers:context_fragment() | undefined.
 extract_context_fragment(TokenInfo, TokenType) ->
-    extract_context_fragment([metadata], TokenInfo, TokenType).
+    extract_context_fragment([claim, metadata], TokenInfo, TokenType).
 
 extract_context_fragment([Method | Rest], TokenInfo, TokenType) ->
     case extract_context_fragment_by(Method, TokenInfo, TokenType) of
@@ -25,10 +25,21 @@ extract_context_fragment([], _, _) ->
 
 %%
 
+extract_context_fragment_by(claim, TokenInfo, _TokenType) ->
+    % TODO
+    % We deliberately do not handle decoding errors here since we extract claims from verified
+    % tokens only, hence they must be well-formed here.
+    Claims = tk_token_jwt:get_claims(TokenInfo),
+    case get_claim(Claims) of
+        {ok, ClaimFragment} ->
+            ClaimFragment;
+        undefined ->
+            undefined
+    end;
 extract_context_fragment_by(metadata, TokenInfo, TokenType) ->
     case tk_token_jwt:get_metadata(TokenInfo) of
         #{auth_method := detect} ->
-            AuthMethod = detect_auth_method(TokenType),
+            AuthMethod = get_auth_method(TokenType),
             build_auth_context_fragment(AuthMethod, TokenInfo);
         #{auth_method := AuthMethod} ->
             build_auth_context_fragment(AuthMethod, TokenInfo);
@@ -36,11 +47,8 @@ extract_context_fragment_by(metadata, TokenInfo, TokenType) ->
             undefined
     end.
 
--spec detect_auth_method(tokenkeeper:token_type()) -> tk_token_jwt:auth_method().
-detect_auth_method(api_key) ->
-    api_key_token;
-detect_auth_method(user_session_token) ->
-    user_session_token.
+get_auth_method(TokenType) ->
+    TokenType.
 
 -spec build_auth_context_fragment(
     tk_token_jwt:auth_method(),
@@ -83,3 +91,44 @@ make_auth_expiration(Timestamp) when is_integer(Timestamp) ->
     genlib_rfc3339:format(Timestamp, second);
 make_auth_expiration(unlimited) ->
     undefined.
+
+%%
+
+-define(CLAIM_BOUNCER_CTX, <<"bouncer_ctx">>).
+-define(CLAIM_CTX_TYPE, <<"ty">>).
+-define(CLAIM_CTX_CONTEXT, <<"ct">>).
+
+-define(CLAIM_CTX_TYPE_V1_THRIFT_BINARY, <<"v1_thrift_binary">>).
+
+-type claim() :: tk_token_jwt:claim().
+-type claims() :: tk_token_jwt:claims().
+
+-spec get_claim(claims()) ->
+    {ok, bouncer_context_helpers:context_fragment()} | {error, {unsupported, claim()}} | undefined.
+get_claim(Claims) ->
+    case maps:get(?CLAIM_BOUNCER_CTX, Claims, undefined) of
+        Claim when Claim /= undefined ->
+            decode_claim(Claim);
+        undefined ->
+            undefined
+    end.
+
+-spec decode_claim(claims()) ->
+    {ok, bouncer_context_helpers:context_fragment()} | {error, {unsupported, claim()} | {malformed, binary()}}.
+decode_claim(#{
+    ?CLAIM_CTX_TYPE := ?CLAIM_CTX_TYPE_V1_THRIFT_BINARY,
+    ?CLAIM_CTX_CONTEXT := Content
+}) ->
+    try
+        {ok, #bctx_ContextFragment{
+            type = v1_thrift_binary,
+            content = base64:decode(Content)
+        }}
+    catch
+        % NOTE
+        % The `base64:decode/1` fails in unpredictable ways.
+        error:_ ->
+            {error, {malformed, Content}}
+    end;
+decode_claim(Ctx) ->
+    {error, {unsupported, Ctx}}.

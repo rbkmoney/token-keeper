@@ -1,4 +1,4 @@
--module(tokenkeeper).
+-module(token_keeper).
 
 %% Application callbacks
 -behaviour(application).
@@ -16,14 +16,12 @@
 %% API Types
 
 -type token() :: binary().
--type authority() :: tokenkeeper | keycloak.
--type token_type() :: api_key | user_session_token.
+-type token_type() :: api_key_token | user_session_token.
 -type token_source() :: #{
     request_origin => binary()
 }.
 
 -export_type([token/0]).
--export_type([authority/0]).
 -export_type([token_type/0]).
 -export_type([token_source/0]).
 
@@ -37,7 +35,7 @@
 
 -spec start(normal, any()) -> {ok, pid()} | {error, any()}.
 start(_StartType, _StartArgs) ->
-    tokenkeeper:start_link().
+    token_keeper:start_link().
 
 -spec prep_stop(State) -> State.
 prep_stop(State) ->
@@ -115,12 +113,12 @@ get_shutdown_timeout() ->
 -spec get_handler_specs(map(), tk_pulse:handlers()) -> [woody:http_handler(woody:th_handler())].
 
 get_handler_specs(ServiceOpts, AuditPulse) ->
-    TokenKeeperService = maps:get(tokenkeeper, ServiceOpts, #{}),
+    TokenKeeperService = maps:get(token_keeper, ServiceOpts, #{}),
     TokenKeeperPulse = maps:get(pulse, TokenKeeperService, []),
     TokenKeeperOpts = #{pulse => AuditPulse ++ TokenKeeperPulse},
     [
         {
-            maps:get(path, TokenKeeperService, <<"/v1/tokenkeeper">>),
+            maps:get(path, TokenKeeperService, <<"/v1/token-keeper">>),
             {{tk_token_keeper_thrift, 'TokenKeeper'}, {tk_handler, TokenKeeperOpts}}
         }
     ].

@@ -1,8 +1,8 @@
-{application, tokenkeeper, [
+{application, token_keeper, [
     {description, "Keeps tokens"},
     {vsn, "0.1.0"},
     {registered, []},
-    {mod, {tokenkeeper, []}},
+    {mod, {token_keeper, []}},
     {applications, [
         kernel,
         stdlib,
