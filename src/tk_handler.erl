@@ -100,9 +100,12 @@ get_authority(TokenInfo) ->
     maps:get(authority, Metadata).
 
 extract_token_metadata(api_key_token, TokenInfo) ->
-    #{
-        <<"party_id">> => tk_token_jwt:get_subject_id(TokenInfo)
-    };
+    case tk_token_jwt:get_subject_id(TokenInfo) of
+        PartyID when PartyID =/= undefined ->
+            #{<<"party_id">> => PartyID};
+        _ ->
+            undefined
+    end;
 extract_token_metadata(user_session_token, _TokenInfo) ->
     undefined.
 
@@ -111,27 +114,13 @@ encode_auth_data(AuthData) ->
         id = maps:get(id, AuthData, undefined),
         token = maps:get(token, AuthData),
         status = maps:get(status, AuthData),
-        context = encode_context_fragment(maps:get(context, AuthData)),
+        context = maps:get(context, AuthData),
         metadata = encode_metadata(maps:get(metadata, AuthData, undefined)),
         authority = maps:get(authority, AuthData)
     }.
 
 encode_metadata(Metadata) ->
     genlib_map:compact(#{?TK_METADATA_NS => Metadata}).
-
-encode_context_fragment(ContextFragment) ->
-    #bctx_ContextFragment{
-        type = v1_thrift_binary,
-        content = encode_context_fragment_content(ContextFragment)
-    }.
-
-encode_context_fragment_content(ContextFragment) ->
-    Type = {struct, struct, {bouncer_context_v1_thrift, 'ContextFragment'}},
-    Codec = thrift_strict_binary_codec:new(),
-    case thrift_strict_binary_codec:write(Codec, Type, ContextFragment) of
-        {ok, Codec1} ->
-            thrift_strict_binary_codec:close(Codec1)
-    end.
 
 decode_source_context(TokenSourceContext) ->
     genlib_map:compact(#{

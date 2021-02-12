@@ -22,6 +22,7 @@
 -export([detect_user_session_token_test/1]).
 -export([detect_dummy_token_test/1]).
 -export([no_token_metadata_test/1]).
+-export([bouncer_context_from_claims_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -60,7 +61,8 @@ groups() ->
             detect_dummy_token_test
         ]},
         {no_token_metadata, [parallel], [
-            no_token_metadata_test
+            no_token_metadata_test,
+            bouncer_context_from_claims_test
         ]}
     ].
 
@@ -216,6 +218,20 @@ no_token_metadata_test(C) ->
     #token_keeper_ContextCreationFailed{} =
         (catch call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
+-spec bouncer_context_from_claims_test(config()) -> ok.
+bouncer_context_from_claims_test(C) ->
+    Client = mk_client(C),
+    JTI = unique_id(),
+    SubjectID = <<"TEST">>,
+    {ok, Token} = issue_token_with_context(JTI, SubjectID),
+    AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
+    ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
+    ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
+    ?assertEqual(active, AuthData#token_keeper_AuthData.status),
+    ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
+    ?assertMatch(?PARTY_METADATA(SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
+
 %%
 
 mk_client(C) ->
@@ -285,6 +301,29 @@ issue_token(JTI, Claims0, Expiration) ->
     Claims = tk_token_jwt:create_claims(Claims0, Expiration),
     tk_token_jwt:issue(JTI, Claims, test).
 
+issue_token_with_context(JTI, SubjectID) ->
+    Acc0 = bouncer_context_helpers:empty(),
+    Acc1 = bouncer_context_helpers:add_auth(
+        #{
+            method => <<"ApiKeyToken">>,
+            token => #{id => JTI},
+            scope => [#{party => #{id => SubjectID}}]
+        },
+        Acc0
+    ),
+    FragmentContent = encode_context_fragment_content(Acc1),
+    issue_token(
+        JTI,
+        #{
+            <<"sub">> => SubjectID,
+            <<"bouncer_ctx">> => #{
+                <<"ty">> => <<"v1_thrift_binary">>,
+                <<"ct">> => base64:encode(FragmentContent)
+            }
+        },
+        unlimited
+    ).
+
 issue_dummy_token(Config) ->
     Claims = #{
         <<"jti">> => unique_id(),
@@ -315,3 +354,11 @@ decode_bouncer_fragment(#bctx_ContextFragment{type = v1_thrift_binary, content =
     Codec = thrift_strict_binary_codec:new(Content),
     {ok, Fragment, _} = thrift_strict_binary_codec:read(Codec, Type),
     Fragment.
+
+encode_context_fragment_content(ContextFragment) ->
+    Type = {struct, struct, {bouncer_context_v1_thrift, 'ContextFragment'}},
+    Codec = thrift_strict_binary_codec:new(),
+    case thrift_strict_binary_codec:write(Codec, Type, ContextFragment) of
+        {ok, Codec1} ->
+            thrift_strict_binary_codec:close(Codec1)
+    end.

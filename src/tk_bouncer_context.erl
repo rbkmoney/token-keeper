@@ -4,12 +4,13 @@
 
 -export([extract_context_fragment/2]).
 
+-type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
+
 %%
 
 %% Is extraction from claims a thing here?
 %% Who's the authority for such tokens?
--spec extract_context_fragment(tk_token_jwt:t(), token_keeper:token_type()) ->
-    bouncer_context_helpers:context_fragment() | undefined.
+-spec extract_context_fragment(tk_token_jwt:t(), token_keeper:token_type()) -> encoded_context_fragment() | undefined.
 extract_context_fragment(TokenInfo, TokenType) ->
     extract_context_fragment([claim, metadata], TokenInfo, TokenType).
 
@@ -53,18 +54,19 @@ get_auth_method(TokenType) ->
 -spec build_auth_context_fragment(
     tk_token_jwt:auth_method(),
     tk_token_jwt:t()
-) -> bouncer_context_helpers:context_fragment().
+) -> encoded_context_fragment().
 build_auth_context_fragment(api_key_token, TokenInfo) ->
     UserID = tk_token_jwt:get_subject_id(TokenInfo),
     Acc0 = bouncer_context_helpers:empty(),
-    bouncer_context_helpers:add_auth(
+    Acc1 = bouncer_context_helpers:add_auth(
         #{
             method => <<"ApiKeyToken">>,
             token => #{id => tk_token_jwt:get_token_id(TokenInfo)},
             scope => [#{party => #{id => UserID}}]
         },
         Acc0
-    );
+    ),
+    encode_context_fragment(Acc1);
 build_auth_context_fragment(user_session_token, TokenInfo) ->
     Metadata = tk_token_jwt:get_metadata(TokenInfo),
     UserID = tk_token_jwt:get_subject_id(TokenInfo),
@@ -78,14 +80,15 @@ build_auth_context_fragment(user_session_token, TokenInfo) ->
         },
         Acc0
     ),
-    bouncer_context_helpers:add_auth(
+    Acc2 = bouncer_context_helpers:add_auth(
         #{
             method => <<"SessionToken">>,
             expiration => make_auth_expiration(Expiration),
             token => #{id => tk_token_jwt:get_token_id(TokenInfo)}
         },
         Acc1
-    ).
+    ),
+    encode_context_fragment(Acc2).
 
 make_auth_expiration(Timestamp) when is_integer(Timestamp) ->
     genlib_rfc3339:format(Timestamp, second);
@@ -104,7 +107,7 @@ make_auth_expiration(unlimited) ->
 -type claims() :: tk_token_jwt:claims().
 
 -spec get_claim(claims()) ->
-    {ok, bouncer_context_helpers:context_fragment()} | {error, {unsupported, claim()}} | undefined.
+    {ok, encoded_context_fragment()} | {error, {unsupported, claim()} | {malformed, binary()}} | undefined.
 get_claim(Claims) ->
     case maps:get(?CLAIM_BOUNCER_CTX, Claims, undefined) of
         Claim when Claim /= undefined ->
@@ -113,8 +116,8 @@ get_claim(Claims) ->
             undefined
     end.
 
--spec decode_claim(claims()) ->
-    {ok, bouncer_context_helpers:context_fragment()} | {error, {unsupported, claim()} | {malformed, binary()}}.
+-spec decode_claim(claim()) ->
+    {ok, encoded_context_fragment()} | {error, {unsupported, claim()} | {malformed, binary()}}.
 decode_claim(#{
     ?CLAIM_CTX_TYPE := ?CLAIM_CTX_TYPE_V1_THRIFT_BINARY,
     ?CLAIM_CTX_CONTEXT := Content
@@ -132,3 +135,19 @@ decode_claim(#{
     end;
 decode_claim(Ctx) ->
     {error, {unsupported, Ctx}}.
+
+%%
+
+encode_context_fragment(ContextFragment) ->
+    #bctx_ContextFragment{
+        type = v1_thrift_binary,
+        content = encode_context_fragment_content(ContextFragment)
+    }.
+
+encode_context_fragment_content(ContextFragment) ->
+    Type = {struct, struct, {bouncer_context_v1_thrift, 'ContextFragment'}},
+    Codec = thrift_strict_binary_codec:new(),
+    case thrift_strict_binary_codec:write(Codec, Type, ContextFragment) of
+        {ok, Codec1} ->
+            thrift_strict_binary_codec:close(Codec1)
+    end.
