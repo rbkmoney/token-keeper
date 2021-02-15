@@ -8,8 +8,6 @@
 
 %%
 
-%% Is extraction from claims a thing here?
-%% Who's the authority for such tokens?
 -spec extract_context_fragment(tk_token_jwt:t(), token_keeper:token_type()) -> encoded_context_fragment() | undefined.
 extract_context_fragment(TokenInfo, TokenType) ->
     extract_context_fragment([claim, metadata], TokenInfo, TokenType).
