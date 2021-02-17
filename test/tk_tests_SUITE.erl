@@ -31,6 +31,7 @@
 -define(CONFIG(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
 
 -define(TK_AUTHORITY_TOKEN_KEEPER, <<"com.rbkmoney.token-keeper">>).
+-define(TK_AUTHORITY_KEYCLOAK, <<"com.rbkmoney.keycloak">>).
 
 -define(PARTY_METADATA(Authority, SubjectID), #{Authority := #{<<"party_id">> := SubjectID}}).
 
@@ -88,7 +89,8 @@ init_per_group(detect_token_type = Name, C) ->
                     test => #{
                         source => {pem_file, get_keysource("keys/local/private.pem", C)},
                         metadata => #{
-                            authority => ?TK_AUTHORITY_TOKEN_KEEPER,
+                            authority => ?TK_AUTHORITY_KEYCLOAK,
+                            metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER,
                             auth_method => detect,
                             user_realm => <<"external">>
                         }
@@ -107,7 +109,8 @@ init_per_group(no_token_metadata = Name, C) ->
                     test => #{
                         source => {pem_file, get_keysource("keys/local/private.pem", C)},
                         metadata => #{
-                            authority => ?TK_AUTHORITY_TOKEN_KEEPER
+                            authority => ?TK_AUTHORITY_KEYCLOAK,
+                            metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
                         }
                     }
                 }
@@ -179,7 +182,7 @@ detect_api_key_test(C) ->
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
     ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
-    ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
+    ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_user_session_token_test(config()) -> ok.
 detect_user_session_token_test(C) ->
@@ -199,7 +202,7 @@ detect_user_session_token_test(C) ->
         )
     ),
     ?assertMatch(#{}, AuthData#token_keeper_AuthData.metadata),
-    ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
+    ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_dummy_token_test(config()) -> ok.
 detect_dummy_token_test(C) ->
@@ -229,7 +232,7 @@ bouncer_context_from_claims_test(C) ->
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
     ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
-    ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
+    ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 %%
 

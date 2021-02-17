@@ -37,10 +37,13 @@
     %% tokens.
     keyset => keyset()
 }.
+
+%@TODO Separate classification parameters from jwt decoder logic
 -type auth_method() ::
     user_session_token | api_key_token | detect.
 -type metadata() :: #{
     authority := binary(),
+    metadata_ns => binary(),
     auth_method => auth_method(),
     user_realm => realm()
 }.
@@ -282,9 +285,10 @@ parse_options(Options) ->
     _ = genlib_map:foreach(
         fun(KeyName, KeyOpts = #{source := Source}) ->
             Metadata = maps:get(metadata, KeyOpts),
+            Authority = maps:get(authority, Metadata),
             AuthMethod = maps:get(auth_method, Metadata, undefined),
             UserRealm = maps:get(user_realm, Metadata, <<>>),
-            Authority = maps:get(authority, Metadata),
+            MetadataNS = maps:get(metadata_ns, Metadata, <<>>),
             _ =
                 is_keysource(Source) orelse
                     exit({invalid_source, KeyName, Source}),
@@ -296,7 +300,10 @@ parse_options(Options) ->
                     exit({invalid_user_realm, KeyName, AuthMethod}),
             _ =
                 is_binary(Authority) orelse
-                    exit({invalid_authority, KeyName, AuthMethod})
+                    exit({invalid_authority, KeyName, AuthMethod}),
+            _ =
+                is_binary(MetadataNS) orelse
+                    exit({invalid_metadata_ns, KeyName, MetadataNS})
         end,
         Keyset
     ),

@@ -70,13 +70,11 @@ extract_auth_data(TokenInfo, TokenSourceContext) ->
     TokenType = determine_token_type(TokenSourceContext),
     case tk_bouncer_context:extract_context_fragment(TokenInfo, TokenType) of
         ContextFragment when ContextFragment =/= undefined ->
-            AuthDataPrototype = #{
-                %% Assume active?
-                status => active,
+            AuthDataPrototype = genlib_map:compact(#{
                 context => ContextFragment,
                 metadata => extract_token_metadata(TokenType, TokenInfo),
                 authority => get_authority(TokenInfo)
-            },
+            }),
             {ok, AuthDataPrototype};
         undefined ->
             {error, unable_to_infer_auth_data}
@@ -100,27 +98,28 @@ get_authority(TokenInfo) ->
 extract_token_metadata(api_key_token, TokenInfo) ->
     case tk_token_jwt:get_subject_id(TokenInfo) of
         PartyID when PartyID =/= undefined ->
-            #{<<"party_id">> => PartyID};
+            wrap_metadata(#{<<"party_id">> => PartyID}, TokenInfo);
         _ ->
             undefined
     end;
 extract_token_metadata(user_session_token, _TokenInfo) ->
     undefined.
 
+wrap_metadata(Metadata, TokenInfo) ->
+    TokenMetadata = tk_token_jwt:get_metadata(TokenInfo),
+    MetadataNS = maps:get(metadata_ns, TokenMetadata),
+    #{MetadataNS => Metadata}.
+
 encode_auth_data(AuthData) ->
-    Authority = maps:get(authority, AuthData),
-    Metadata = encode_metadata(maps:get(metadata, AuthData, undefined), Authority),
     #token_keeper_AuthData{
         id = maps:get(id, AuthData, undefined),
         token = maps:get(token, AuthData),
-        status = maps:get(status, AuthData),
+        %% Assume active?
+        status = maps:get(status, AuthData, active),
         context = maps:get(context, AuthData),
-        metadata = Metadata,
-        authority = Authority
+        metadata = maps:get(metadata, AuthData, #{}),
+        authority = maps:get(authority, AuthData)
     }.
-
-encode_metadata(Metadata, Authority) ->
-    genlib_map:compact(#{Authority => Metadata}).
 
 decode_source_context(TokenSourceContext) ->
     genlib_map:compact(#{
