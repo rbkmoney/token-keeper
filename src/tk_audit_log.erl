@@ -230,8 +230,8 @@ encode_error(Other) ->
     #{details => genlib:format(Other)}.
 
 extract_metadata(Metadata, Acc) ->
-    Acc1 = extract_opt_meta(token_info, Metadata, fun encode_token_info/1, Acc),
-    Acc2 = extract_opt_meta(token_source, Metadata, fun encode_token_source/1, Acc1),
+    Acc1 = extract_opt_meta(token, Metadata, fun encode_token/1, Acc),
+    Acc2 = extract_opt_meta(source, Metadata, fun encode_token_source/1, Acc1),
     extract_woody_ctx(maps:get(woody_ctx, Metadata, undefined), Acc2).
 
 extract_opt_meta(K, Metadata, EncodeFun, Acc) ->
@@ -240,7 +240,7 @@ extract_opt_meta(K, Metadata, EncodeFun, Acc) ->
         error -> Acc
     end.
 
-encode_token_info({JTI, Claims, TokenMetadata}) ->
+encode_token({JTI, Claims, TokenMetadata}) ->
     #{
         jti => JTI,
         claims => Claims,

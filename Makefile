@@ -6,7 +6,7 @@ UTILS_PATH := build_utils
 TEMPLATES_PATH := .
 
 # Name of the service
-SERVICE_NAME := token_keeper
+SERVICE_NAME := token-keeper
 # Service image default tag
 SERVICE_IMAGE_TAG ?= $(shell git rev-parse HEAD)
 # The tag for service image to be pushed with

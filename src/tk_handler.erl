@@ -20,8 +20,6 @@
     pulse_metadata :: tk_pulse:metadata()
 }).
 
--define(TK_METADATA_NS, <<"com.rbkmoney.token-keeper">>).
-
 %%
 
 -spec handle_function(woody:func(), woody:args(), woody_context:ctx(), opts()) -> {ok, woody:result()}.
@@ -40,7 +38,7 @@ do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     case tk_token_jwt:verify(Token) of
         {ok, TokenInfo} ->
             TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
-            State1 = save_pulse_metadata(#{token_info => TokenInfo, token_source => TokenSourceContextDecoded}, State),
+            State1 = save_pulse_metadata(#{token => TokenInfo, source => TokenSourceContextDecoded}, State),
             case extract_auth_data(TokenInfo, TokenSourceContextDecoded) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
@@ -110,17 +108,19 @@ extract_token_metadata(user_session_token, _TokenInfo) ->
     undefined.
 
 encode_auth_data(AuthData) ->
+    Authority = maps:get(authority, AuthData),
+    Metadata = encode_metadata(maps:get(metadata, AuthData, undefined), Authority),
     #token_keeper_AuthData{
         id = maps:get(id, AuthData, undefined),
         token = maps:get(token, AuthData),
         status = maps:get(status, AuthData),
         context = maps:get(context, AuthData),
-        metadata = encode_metadata(maps:get(metadata, AuthData, undefined)),
-        authority = maps:get(authority, AuthData)
+        metadata = Metadata,
+        authority = Authority
     }.
 
-encode_metadata(Metadata) ->
-    genlib_map:compact(#{?TK_METADATA_NS => Metadata}).
+encode_metadata(Metadata, Authority) ->
+    genlib_map:compact(#{Authority => Metadata}).
 
 decode_source_context(TokenSourceContext) ->
     genlib_map:compact(#{

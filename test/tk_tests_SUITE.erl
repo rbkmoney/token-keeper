@@ -30,10 +30,9 @@
 
 -define(CONFIG(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
 
--define(TK_METADATA_NS, <<"com.rbkmoney.token-keeper">>).
--define(TK_AUTHORITY_TOKEN_KEEPER, <<"com.rbkmoney.authority.token-keeper">>).
+-define(TK_AUTHORITY_TOKEN_KEEPER, <<"com.rbkmoney.token-keeper">>).
 
--define(PARTY_METADATA(SubjectID), #{?TK_METADATA_NS := #{<<"party_id">> := SubjectID}}).
+-define(PARTY_METADATA(Authority, SubjectID), #{Authority := #{<<"party_id">> := SubjectID}}).
 
 -define(TOKEN_SOURCE_CONTEXT(), ?TOKEN_SOURCE_CONTEXT(<<"http://spanish.inquisition">>)).
 -define(TOKEN_SOURCE_CONTEXT(SourceURL), #token_keeper_TokenSourceContext{request_origin = SourceURL}).
@@ -179,7 +178,7 @@ detect_api_key_test(C) ->
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
-    ?assertMatch(?PARTY_METADATA(SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_user_session_token_test(config()) -> ok.
@@ -229,7 +228,7 @@ bouncer_context_from_claims_test(C) ->
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
-    ?assertMatch(?PARTY_METADATA(SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_TOKEN_KEEPER, AuthData#token_keeper_AuthData.authority).
 
 %%
