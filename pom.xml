@@ -17,16 +17,18 @@
     <properties>
         <project.maintainer>Konstantin Struzhkin &lt;k.struzhkin@rbkmoney.com&gt;</project.maintainer>
         <server.port>8022</server.port>
+        <exposed.ports>${server.port} ${server.port}</exposed.ports>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <jwe.secrete.key>2C+kMbFi7DrV0wsIR0KQ81RbkylqMOdqNNHV1loJ4Bg=</jwe.secrete.key>
         <mg.service.namespace>token-keeper</mg.service.namespace>
         <mg.service.url>http://localhost:8080/v1/automaton</mg.service.url>
 
-        <dockerfile.base.service.tag>22c57470c4fc47161894f036b7cf9d70f42b75f5</dockerfile.base.service.tag>
+        <dockerfile.base.service.tag>bc95d0d6dc13c693acd2b274531a7d604b877bf3</dockerfile.base.service.tag>
+        <dockerfile.registry>dr2.rbkmoney.com</dockerfile.registry>
         <damsel.version>1.234-5b4e65d</damsel.version>
         <geck.version>0.6.7</geck.version>
-        <shared.resources.version>0.2.1</shared.resources.version>
+        <shared.resources.version>0.3.6</shared.resources.version>
         <slf4j.api.version>1.7.21</slf4j.api.version>
         <nimbus.jose.jwt.version>6.3</nimbus.jose.jwt.version>
         <lombok.version>1.18.4</lombok.version>
@@ -63,11 +65,6 @@
             <groupId>com.rbkmoney</groupId>
             <artifactId>machinarium</artifactId>
             <version>${machinarium.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rbkmoney.logback</groupId>
-            <artifactId>nop-rolling</artifactId>
-            <version>1.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.rbkmoney</groupId>
