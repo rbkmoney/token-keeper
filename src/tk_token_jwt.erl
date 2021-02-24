@@ -38,14 +38,8 @@
     keyset => keyset()
 }.
 
-%@TODO Separate classification parameters from jwt decoder logic
--type auth_method() ::
-    user_session_token | api_key_token | detect.
 -type metadata() :: #{
-    authority := binary(),
-    metadata_ns => binary(),
-    auth_method => auth_method(),
-    user_realm => realm()
+    type := atom()
 }.
 
 -export_type([t/0]).
@@ -54,7 +48,6 @@
 -export_type([token/0]).
 -export_type([expiration/0]).
 -export_type([metadata/0]).
--export_type([auth_method/0]).
 -export_type([options/0]).
 
 %% Internal types
@@ -77,8 +70,6 @@
 
 -type keysource() ::
     {pem_file, file:filename()}.
-
--type realm() :: binary().
 
 %%
 
@@ -285,25 +276,13 @@ parse_options(Options) ->
     _ = genlib_map:foreach(
         fun(KeyName, KeyOpts = #{source := Source}) ->
             Metadata = maps:get(metadata, KeyOpts),
-            Authority = maps:get(authority, Metadata),
-            AuthMethod = maps:get(auth_method, Metadata, undefined),
-            UserRealm = maps:get(user_realm, Metadata, <<>>),
-            MetadataNS = maps:get(metadata_ns, Metadata, <<>>),
+            Type = maps:get(type, Metadata),
             _ =
                 is_keysource(Source) orelse
                     exit({invalid_source, KeyName, Source}),
             _ =
-                is_auth_method(AuthMethod) orelse
-                    exit({invalid_auth_method, KeyName, AuthMethod}),
-            _ =
-                is_binary(UserRealm) orelse
-                    exit({invalid_user_realm, KeyName, AuthMethod}),
-            _ =
-                is_binary(Authority) orelse
-                    exit({invalid_authority, KeyName, AuthMethod}),
-            _ =
-                is_binary(MetadataNS) orelse
-                    exit({invalid_metadata_ns, KeyName, MetadataNS})
+                is_atom(Type) orelse
+                    exit({invalid_type, KeyName, Type})
         end,
         Keyset
     ),
@@ -312,17 +291,6 @@ parse_options(Options) ->
 is_keysource({pem_file, Fn}) ->
     is_list(Fn) orelse is_binary(Fn);
 is_keysource(_) ->
-    false.
-
-is_auth_method(user_session_token) ->
-    true;
-is_auth_method(api_key_token) ->
-    true;
-is_auth_method(detect) ->
-    true;
-is_auth_method(undefined) ->
-    true;
-is_auth_method(_) ->
     false.
 
 %%

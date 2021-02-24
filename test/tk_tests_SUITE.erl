@@ -21,7 +21,7 @@
 -export([detect_api_key_test/1]).
 -export([detect_user_session_token_test/1]).
 -export([detect_dummy_token_test/1]).
--export([no_token_metadata_test/1]).
+-export([no_token_claim_test/1]).
 -export([bouncer_context_from_claims_test/1]).
 
 -type config() :: ct_helper:config().
@@ -49,7 +49,7 @@
 all() ->
     [
         {group, detect_token_type},
-        {group, no_token_metadata}
+        {group, claim_only}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
@@ -60,8 +60,8 @@ groups() ->
             detect_user_session_token_test,
             detect_dummy_token_test
         ]},
-        {no_token_metadata, [parallel], [
-            no_token_metadata_test,
+        {claim_only, [parallel], [
+            no_token_claim_test,
             bouncer_context_from_claims_test
         ]}
     ].
@@ -89,19 +89,31 @@ init_per_group(detect_token_type = Name, C) ->
                     test => #{
                         source => {pem_file, get_keysource("keys/local/private.pem", C)},
                         metadata => #{
-                            authority => ?TK_AUTHORITY_KEYCLOAK,
-                            metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER,
-                            auth_method => detect,
-                            user_realm => <<"external">>
+                            type => keycloak
                         }
                     }
                 }
             }
         }},
-        {user_session_token_origins, [?USER_TOKEN_SOURCE]}
+        {authdata_sources, #{
+            keycloak => [
+                storage,
+                {extract, #{
+                    methods => [
+                        claim,
+                        {detect_token, #{
+                            user_session_token_origins => [?USER_TOKEN_SOURCE],
+                            user_realm => <<"external">>,
+                            metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
+                        }}
+                    ],
+                    authority => ?TK_AUTHORITY_KEYCLOAK
+                }}
+            ]
+        }}
     ]) ++
         [{groupname, Name} | C];
-init_per_group(no_token_metadata = Name, C) ->
+init_per_group(claim_only = Name, C) ->
     start_keeper([
         {tokens, #{
             jwt => #{
@@ -109,12 +121,19 @@ init_per_group(no_token_metadata = Name, C) ->
                     test => #{
                         source => {pem_file, get_keysource("keys/local/private.pem", C)},
                         metadata => #{
-                            authority => ?TK_AUTHORITY_KEYCLOAK,
-                            metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
+                            type => claim_only
                         }
                     }
                 }
             }
+        }},
+        {authdata_sources, #{
+            claim_only => [
+                {extract, #{
+                    methods => [claim],
+                    authority => ?TK_AUTHORITY_KEYCLOAK
+                }}
+            ]
         }}
     ]) ++
         [{groupname, Name} | C];
@@ -211,13 +230,13 @@ detect_dummy_token_test(C) ->
     #token_keeper_InvalidToken{} =
         (catch call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
--spec no_token_metadata_test(config()) -> ok.
-no_token_metadata_test(C) ->
+-spec no_token_claim_test(config()) -> ok.
+no_token_claim_test(C) ->
     Client = mk_client(C),
     JTI = unique_id(),
     SubjectID = <<"TEST">>,
     {ok, Token} = issue_token(JTI, #{<<"sub">> => SubjectID}, unlimited),
-    #token_keeper_ContextCreationFailed{} =
+    #token_keeper_AuthDataNotFound{} =
         (catch call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
 -spec bouncer_context_from_claims_test(config()) -> ok.
@@ -230,8 +249,8 @@ bouncer_context_from_claims_test(C) ->
     ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
-    ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
-    ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assert(assert_context({claim_token, JTI}, AuthData#token_keeper_AuthData.context)),
+    ?assertMatch(#{}, AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 %%
@@ -271,6 +290,10 @@ assert_context(TokenInfo, EncodedContextFragment) ->
     ?assert(assert_user(TokenInfo, User)),
     true.
 
+assert_auth({claim_token, JTI}, Auth) ->
+    ?assertEqual(<<"ClaimToken">>, Auth#bctx_v1_Auth.method),
+    ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token),
+    true;
 assert_auth({api_key_token, JTI, SubjectID}, Auth) ->
     ?assertEqual(<<"ApiKeyToken">>, Auth#bctx_v1_Auth.method),
     ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token),
@@ -282,6 +305,8 @@ assert_auth({user_session_token, JTI, _SubjectID, _SubjectEmail, Exp}, Auth) ->
     ?assertEqual(make_auth_expiration(Exp), Auth#bctx_v1_Auth.expiration),
     true.
 
+assert_user({claim_token, _}, undefined) ->
+    true;
 assert_user({api_key_token, _, _}, undefined) ->
     true;
 assert_user({user_session_token, _JTI, SubjectID, SubjectEmail, _Exp}, User) ->
@@ -307,9 +332,8 @@ issue_token_with_context(JTI, SubjectID) ->
     Acc0 = bouncer_context_helpers:empty(),
     Acc1 = bouncer_context_helpers:add_auth(
         #{
-            method => <<"ApiKeyToken">>,
-            token => #{id => JTI},
-            scope => [#{party => #{id => SubjectID}}]
+            method => <<"ClaimToken">>,
+            token => #{id => JTI}
         },
         Acc0
     ),

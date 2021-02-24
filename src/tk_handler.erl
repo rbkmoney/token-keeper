@@ -39,14 +39,14 @@ do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
         {ok, TokenInfo} ->
             TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
             State1 = save_pulse_metadata(#{token => TokenInfo, source => TokenSourceContextDecoded}, State),
-            case extract_auth_data(TokenInfo, TokenSourceContextDecoded) of
+            case tk_authdata:from_token(TokenInfo, make_source_opts(TokenSourceContextDecoded)) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
                     _ = handle_beat(Op, succeeded, State1),
                     {ok, EncodedAuthData};
                 {error, Reason} ->
-                    _ = handle_beat(Op, {failed, {context_creaton, Reason}}, State1),
-                    woody_error:raise(business, #token_keeper_ContextCreationFailed{})
+                    _ = handle_beat(Op, {failed, {not_found, Reason}}, State1),
+                    woody_error:raise(business, #token_keeper_AuthDataNotFound{})
             end;
         {error, Reason} ->
             _ = handle_beat(Op, {failed, {token_verification, Reason}}, State),
@@ -66,49 +66,12 @@ make_state(WoodyCtx, Opts) ->
         pulse_metadata = #{woody_ctx => WoodyCtx}
     }.
 
-extract_auth_data(TokenInfo, TokenSourceContext) ->
-    TokenType = determine_token_type(TokenSourceContext),
-    case tk_bouncer_context:extract_context_fragment(TokenInfo, TokenType) of
-        ContextFragment when ContextFragment =/= undefined ->
-            AuthDataPrototype = genlib_map:compact(#{
-                context => ContextFragment,
-                metadata => extract_token_metadata(TokenType, TokenInfo),
-                authority => get_authority(TokenInfo)
-            }),
-            {ok, AuthDataPrototype};
-        undefined ->
-            {error, unable_to_infer_auth_data}
-    end.
-
-determine_token_type(#{request_origin := Origin}) ->
-    UserTokenOrigins = application:get_env(token_keeper, user_session_token_origins, []),
-    case lists:member(Origin, UserTokenOrigins) of
-        true ->
-            user_session_token;
-        false ->
-            api_key_token
-    end;
-determine_token_type(#{}) ->
-    api_key_token.
-
-get_authority(TokenInfo) ->
-    Metadata = tk_token_jwt:get_metadata(TokenInfo),
-    maps:get(authority, Metadata).
-
-extract_token_metadata(api_key_token, TokenInfo) ->
-    case tk_token_jwt:get_subject_id(TokenInfo) of
-        PartyID when PartyID =/= undefined ->
-            wrap_metadata(#{<<"party_id">> => PartyID}, TokenInfo);
-        _ ->
-            undefined
-    end;
-extract_token_metadata(user_session_token, _TokenInfo) ->
-    undefined.
-
-wrap_metadata(Metadata, TokenInfo) ->
-    TokenMetadata = tk_token_jwt:get_metadata(TokenInfo),
-    MetadataNS = maps:get(metadata_ns, TokenMetadata),
-    #{MetadataNS => Metadata}.
+make_source_opts(TokenSourceContext) ->
+    #{
+        extractor_opts => #{
+            token_source => TokenSourceContext
+        }
+    }.
 
 encode_auth_data(AuthData) ->
     #token_keeper_AuthData{
