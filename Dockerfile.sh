@@ -3,9 +3,9 @@ cat <<EOF
 FROM $BASE_IMAGE
 LABEL maintainer="Alexey Shaporin <a.shaporin@rbk.money>"
 RUN mkdir -p /var/log/token-keeper
-COPY ./_build/prod/rel/token-keeper /opt/token-keeper
-WORKDIR /opt/token_keeper
-CMD /opt/token-keeper/bin/token-keeper foreground
+COPY ./_build/prod/rel/token_keeper /opt/token-keeper
+WORKDIR /opt/token-keeper
+CMD /opt/token-keeper/bin/token_keeper foreground
 EXPOSE 8022
 LABEL com.rbkmoney.$SERVICE_NAME.parent=$BASE_IMAGE_NAME \
       com.rbkmoney.$SERVICE_NAME.parent_tag=$BASE_IMAGE_TAG \
