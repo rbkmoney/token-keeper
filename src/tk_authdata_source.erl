@@ -13,6 +13,8 @@
 -type token_source() :: storage | extractor.
 
 -type source_opts() :: #{
+    authority => binary(),
+    metadata_ns => binary(),
     extractor_opts => tk_context_extractor:extractor_opts()
 }.
 

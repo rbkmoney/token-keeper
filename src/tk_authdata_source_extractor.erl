@@ -46,9 +46,15 @@ make_auth_data(ContextFragment, Metadata, SourceOpts) ->
     genlib_map:compact(#{
         status => active,
         context => encode_context_fragment(ContextFragment),
-        metadata => Metadata,
+        metadata => wrap_metadata(Metadata, SourceOpts),
         authority => get_authority(SourceOpts)
     }).
+
+wrap_metadata(undefined, _SourceOpts) ->
+    undefined;
+wrap_metadata(Metadata, SourceOpts) ->
+    MetadataNS = maps:get(metadata_ns, SourceOpts),
+    #{MetadataNS => Metadata}.
 
 encode_context_fragment({encoded_context_fragment, ContextFragment}) ->
     ContextFragment;

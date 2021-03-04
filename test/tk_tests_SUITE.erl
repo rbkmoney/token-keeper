@@ -33,7 +33,11 @@
 -define(TK_AUTHORITY_TOKEN_KEEPER, <<"com.rbkmoney.token-keeper">>).
 -define(TK_AUTHORITY_KEYCLOAK, <<"com.rbkmoney.keycloak">>).
 
--define(PARTY_METADATA(Authority, SubjectID), #{Authority := #{<<"party_id">> := SubjectID}}).
+-define(METADATA(Authority, Metadata), #{Authority := Metadata}).
+-define(PARTY_METADATA(Authority, SubjectID), ?METADATA(Authority, #{<<"party_id">> := SubjectID})).
+-define(USER_METADATA(Authority, SubjectID, Email),
+    ?METADATA(Authority, #{<<"user_id">> := SubjectID, <<"email">> := Email})
+).
 
 -define(TOKEN_SOURCE_CONTEXT(), ?TOKEN_SOURCE_CONTEXT(<<"http://spanish.inquisition">>)).
 -define(TOKEN_SOURCE_CONTEXT(SourceURL), #token_keeper_TokenSourceContext{request_origin = SourceURL}).
@@ -103,10 +107,10 @@ init_per_group(detect_token_type = Name, C) ->
                         claim,
                         {detect_token, #{
                             user_session_token_origins => [?USER_TOKEN_SOURCE],
-                            user_realm => <<"external">>,
-                            metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
+                            user_realm => <<"external">>
                         }}
                     ],
+                    metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER,
                     authority => ?TK_AUTHORITY_KEYCLOAK
                 }}
             ]
@@ -220,7 +224,10 @@ detect_user_session_token_test(C) ->
             AuthData#token_keeper_AuthData.context
         )
     ),
-    ?assertMatch(#{}, AuthData#token_keeper_AuthData.metadata),
+    ?assertMatch(
+        ?USER_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID, SubjectEmail),
+        AuthData#token_keeper_AuthData.metadata
+    ),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_dummy_token_test(config()) -> ok.

@@ -8,12 +8,13 @@
 -spec get_context(tk_token_jwt:t(), tk_context_extractor:extractor_opts()) -> tk_context_extractor:extracted_context().
 get_context(Token, ExtractorOpts) ->
     UserID = tk_token_jwt:get_subject_id(Token),
+    Email = tk_token_jwt:get_subject_email(Token),
     Expiration = tk_token_jwt:get_expires_at(Token),
     Acc0 = bouncer_context_helpers:empty(),
     Acc1 = bouncer_context_helpers:add_user(
         #{
             id => UserID,
-            email => tk_token_jwt:get_subject_email(Token),
+            email => Email,
             realm => #{id => maps:get(user_realm, ExtractorOpts, undefined)}
         },
         Acc0
@@ -26,7 +27,12 @@ get_context(Token, ExtractorOpts) ->
         },
         Acc1
     ),
-    {Acc2, undefined}.
+    {Acc2,
+        genlib_map:compact(#{
+            <<"user_id">> => UserID,
+            <<"email">> => Email,
+            <<"name">> => tk_token_jwt:get_claim(<<"name">>, Token, undefined)
+        })}.
 
 %% Internal functions
 
