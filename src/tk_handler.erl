@@ -35,11 +35,11 @@ do_handle_function('AddExistingToken', _, _State) ->
     erlang:error(not_implemented);
 do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     _ = handle_beat(Op, started, State),
-    case tk_token_jwt:verify(Token) of
+    TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
+    case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
         {ok, TokenInfo} ->
-            TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
             State1 = save_pulse_metadata(#{token => TokenInfo, source => TokenSourceContextDecoded}, State),
-            case tk_authdata:from_token(TokenInfo, make_source_opts(TokenSourceContextDecoded)) of
+            case tk_authdata:from_token(TokenInfo) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
                     _ = handle_beat(Op, succeeded, State1),
@@ -64,13 +64,6 @@ make_state(WoodyCtx, Opts) ->
         woody_context = WoodyCtx,
         pulse = maps:get(pulse, Opts, []),
         pulse_metadata = #{woody_ctx => WoodyCtx}
-    }.
-
-make_source_opts(TokenSourceContext) ->
-    #{
-        extractor_opts => #{
-            token_source => TokenSourceContext
-        }
     }.
 
 encode_auth_data(AuthData) ->

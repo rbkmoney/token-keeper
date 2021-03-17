@@ -8,7 +8,7 @@
 %% API Types
 
 -type token_source() :: #{
-    request_origin := binary()
+    request_origin => binary()
 }.
 
 -export_type([token_source/0]).
@@ -17,8 +17,9 @@
 
 -spec get_context(tk_token_jwt:t(), tk_context_extractor:extractor_opts()) ->
     tk_context_extractor:extracted_context() | undefined.
-get_context(Token, Opts = #{token_source := TokenSourceContext, user_session_token_origins := UserTokenOrigins}) ->
-    Opts1 = maps:without([token_source, user_session_token_origins], Opts),
+get_context(Token, Opts = #{user_session_token_origins := UserTokenOrigins}) ->
+    TokenSourceContext = tk_token_jwt:get_source_context(Token),
+    Opts1 = maps:without([user_session_token_origins], Opts),
     tk_context_extractor:get_context(
         determine_token_type(TokenSourceContext, UserTokenOrigins),
         Token,

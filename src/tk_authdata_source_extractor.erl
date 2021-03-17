@@ -22,19 +22,12 @@ get_authdata(Token, Opts) ->
 %%
 
 get_extractor_methods(Opts) ->
-    Methods = maps:get(methods, Opts),
-    ExtractorOpts = maps:get(extractor_opts, Opts),
-    lists:map(
-        fun
-            ({Mod, ExtractorOpts0}) -> {Mod, maps:merge(ExtractorOpts0, ExtractorOpts)};
-            (Mod) when is_atom(Mod) -> {Mod, ExtractorOpts}
-        end,
-        Methods
-    ).
+    maps:get(methods, Opts).
 
 extract_context_with([], _Token) ->
     undefined;
-extract_context_with([{Method, Opts} | Rest], Token) ->
+extract_context_with([MethodOpts | Rest], Token) ->
+    {Method, Opts} = get_method_opts(MethodOpts),
     case tk_context_extractor:get_context(Method, Token, Opts) of
         AuthData when AuthData =/= undefined ->
             AuthData;
@@ -74,3 +67,8 @@ encode_context_fragment_content(ContextFragment) ->
 
 get_authority(SourceOpts) ->
     maps:get(authority, SourceOpts).
+
+get_method_opts({_Method, _Opts} = MethodOpts) ->
+    MethodOpts;
+get_method_opts(Method) when is_atom(Method) ->
+    {Method, #{}}.

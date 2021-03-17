@@ -87,57 +87,57 @@ end_per_suite(C) ->
 -spec init_per_group(group_name(), config()) -> config().
 init_per_group(detect_token_type = Name, C) ->
     start_keeper([
-        {tokens, #{
-            jwt => #{
-                keyset => #{
-                    test => #{
-                        source => {pem_file, get_keysource("keys/local/private.pem", C)},
-                        metadata => #{
-                            type => keycloak
-                        }
+        {jwt, #{
+            keyset => #{
+                test => #{
+                    source => {pem_file, get_keysource("keys/local/private.pem", C)},
+                    metadata => #{
+                        authority => keycloak
                     }
                 }
             }
         }},
-        {authdata_sources, #{
-            keycloak => [
-                storage,
-                {extract, #{
-                    methods => [
-                        claim,
-                        {detect_token, #{
-                            user_session_token_origins => [?USER_TOKEN_SOURCE],
-                            user_realm => <<"external">>
-                        }}
-                    ],
-                    metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER,
-                    authority => ?TK_AUTHORITY_KEYCLOAK
-                }}
-            ]
+        {authorities, #{
+            keycloak => #{
+                authdata_sources => [
+                    storage,
+                    {extract, #{
+                        methods => [
+                            claim,
+                            {detect_token, #{
+                                user_session_token_origins => [?USER_TOKEN_SOURCE],
+                                user_realm => <<"external">>
+                            }}
+                        ],
+                        metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER,
+                        authority => ?TK_AUTHORITY_KEYCLOAK
+                    }}
+                ]
+            }
         }}
     ]) ++
         [{groupname, Name} | C];
 init_per_group(claim_only = Name, C) ->
     start_keeper([
-        {tokens, #{
-            jwt => #{
-                keyset => #{
-                    test => #{
-                        source => {pem_file, get_keysource("keys/local/private.pem", C)},
-                        metadata => #{
-                            type => claim_only
-                        }
+        {jwt, #{
+            keyset => #{
+                test => #{
+                    source => {pem_file, get_keysource("keys/local/private.pem", C)},
+                    metadata => #{
+                        authority => claim_only
                     }
                 }
             }
         }},
-        {authdata_sources, #{
-            claim_only => [
-                {extract, #{
-                    methods => [claim],
-                    authority => ?TK_AUTHORITY_KEYCLOAK
-                }}
-            ]
+        {authorities, #{
+            claim_only => #{
+                authdata_sources => [
+                    {extract, #{
+                        methods => [claim],
+                        authority => ?TK_AUTHORITY_KEYCLOAK
+                    }}
+                ]
+            }
         }}
     ]) ++
         [{groupname, Name} | C];
@@ -257,7 +257,7 @@ bouncer_context_from_claims_test(C) ->
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({claim_token, JTI}, AuthData#token_keeper_AuthData.context)),
-    ?assertMatch(#{}, AuthData#token_keeper_AuthData.metadata),
+    ?assertEqual(#{}, AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 %%

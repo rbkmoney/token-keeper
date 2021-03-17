@@ -5,7 +5,7 @@
 
 %% API functions
 
--export([from_token/2]).
+-export([from_token/1]).
 
 %% API Types
 
@@ -36,11 +36,10 @@
 
 %% API Functions
 
--spec from_token(tk_token_jwt:t(), tk_authdata_source:source_opts()) ->
-    {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
-from_token(Token, Opts) ->
-    TokenType = get_token_type(Token),
-    AuthDataSources = get_auth_data_sources(TokenType, Opts),
+-spec from_token(tk_token_jwt:t()) -> {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
+from_token(Token) ->
+    Authority = get_token_authority(Token),
+    AuthDataSources = get_auth_data_sources(Authority),
     case get_authdata_from_sources(AuthDataSources, Token) of
         AuthData when AuthData =/= undefined ->
             {ok, AuthData};
@@ -50,34 +49,40 @@ from_token(Token, Opts) ->
 
 %%
 
-get_token_type(Token) ->
+get_token_authority(Token) ->
     Metadata = tk_token_jwt:get_metadata(Token),
-    maps:get(type, Metadata).
+    maps:get(authority, Metadata).
 
-get_auth_data_sources(TokenType, Opts) ->
-    SourceConfig = application:get_env(token_keeper, authdata_sources, #{}),
-    case maps:get(TokenType, SourceConfig, undefined) of
+get_auth_data_sources(Authority) ->
+    AuthorityConfig = get_authority_config(Authority),
+    case maps:get(authdata_sources, AuthorityConfig, undefined) of
         Sources when Sources =/= undefined ->
-            merge_source_opts(Sources, Opts);
+            Sources;
         undefined ->
-            throw({misconfiguration, {no_authdata_source, TokenType}})
+            throw({misconfiguration, {no_authdata_sources, Authority}})
     end.
 
-merge_source_opts(AuthDataSources, Opts) ->
-    lists:map(
-        fun
-            ({Mod, SourceOpts}) -> {Mod, maps:merge(SourceOpts, Opts)};
-            (Mod) when is_atom(Mod) -> {Mod, Opts}
-        end,
-        AuthDataSources
-    ).
+get_authority_config(Authority) ->
+    Authorities = application:get_env(token_keeper, authorities, #{}),
+    case maps:get(Authority, Authorities, undefined) of
+        Config when Config =/= undefined ->
+            Config;
+        undefined ->
+            throw({misconfiguration, {no_such_authority, Authority}})
+    end.
 
 get_authdata_from_sources([], _Token) ->
     undefined;
-get_authdata_from_sources([{Source, Opts} | Rest], Token) ->
+get_authdata_from_sources([SourceOpts | Rest], Token) ->
+    {Source, Opts} = get_source_opts(SourceOpts),
     case tk_authdata_source:get_authdata(Source, Token, Opts) of
         AuthData when AuthData =/= undefined ->
             AuthData;
         undefined ->
             get_authdata_from_sources(Rest, Token)
     end.
+
+get_source_opts({_Source, _Opts} = SourceOpts) ->
+    SourceOpts;
+get_source_opts(Source) when is_atom(Source) ->
+    {Source, #{}}.

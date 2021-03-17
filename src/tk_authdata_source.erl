@@ -13,9 +13,9 @@
 -type token_source() :: storage | extractor.
 
 -type source_opts() :: #{
+    methods => tk_context_extractor:methods(),
     authority => binary(),
-    metadata_ns => binary(),
-    extractor_opts => tk_context_extractor:extractor_opts()
+    metadata_ns => binary()
 }.
 
 -export_type([token_source/0]).

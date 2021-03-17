@@ -76,12 +76,12 @@ init([]) ->
             additional_routes => [erl_health_handle:get_route(Healthcheck)]
         }
     ),
-    TokensOpts = genlib_app:env(?MODULE, tokens, #{}),
-    TokensChildSpecs = get_tokens_specs(TokensOpts),
+    TokensOpts = genlib_app:env(?MODULE, jwt, #{}),
+    TokensChildSpec = tk_token_jwt:child_spec(TokensOpts),
     {ok,
         {
             #{strategy => one_for_all, intensity => 6, period => 30},
-            [HandlerChildSpec | TokensChildSpecs]
+            [HandlerChildSpec, TokensChildSpec]
         }}.
 
 -spec get_ip_address() -> inet:ip_address().
@@ -133,17 +133,3 @@ enable_health_logging(Check) ->
         fun(_, Runner) -> #{runner => Runner, event_handler => EvHandler} end,
         Check
     ).
-
-%%
-
-get_tokens_specs(TokensOpts) ->
-    maps:fold(
-        fun(K, V, Acc) ->
-            [get_token_spec(K, V) | Acc]
-        end,
-        [],
-        TokensOpts
-    ).
-
-get_token_spec(jwt, JWTOptions) ->
-    tk_token_jwt:child_spec(JWTOptions).

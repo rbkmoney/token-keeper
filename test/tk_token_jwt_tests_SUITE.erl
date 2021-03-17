@@ -71,12 +71,12 @@ verify_test(_) ->
     JTI = unique_id(),
     PartyID = <<"TEST">>,
     {ok, Token} = issue_token(JTI, #{<<"sub">> => PartyID, <<"TEST">> => <<"TEST">>}, unlimited),
-    {ok, {JTI, #{<<"sub">> := PartyID, <<"TEST">> := <<"TEST">>}, #{}}} = tk_token_jwt:verify(Token).
+    {ok, {JTI, #{<<"sub">> := PartyID, <<"TEST">> := <<"TEST">>}, #{}}} = tk_token_jwt:verify(Token, #{}).
 
 -spec bad_token_test(config()) -> _.
 bad_token_test(Config) ->
     {ok, Token} = issue_dummy_token(Config),
-    {error, invalid_signature} = tk_token_jwt:verify(Token).
+    {error, invalid_signature} = tk_token_jwt:verify(Token, #{}).
 
 -spec bad_signee_test(config()) -> _.
 bad_signee_test(_) ->

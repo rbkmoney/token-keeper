@@ -10,13 +10,12 @@
 
 %% API Types
 
+-type methods() :: [{method(), extractor_opts()} | method()].
 -type method() :: claim | detect_token | api_key_token | user_session_token.
 
 -type extractor_opts() :: #{
-    token_source => tk_extractor_detect_token:token_source(),
     user_session_token_origins => list(binary()),
-    user_realm => binary(),
-    metadata_ns => tk_authdata:metadata_ns()
+    user_realm => binary()
 }.
 
 -type extracted_context() :: {context_fragment(), tk_authdata:metadata() | undefined}.
@@ -26,6 +25,8 @@
     {encoded_context_fragment, encoded_context_fragment()}
     | bouncer_context_helpers:context_fragment().
 
+-export_type([methods/0]).
+-export_type([method/0]).
 -export_type([extractor_opts/0]).
 -export_type([extracted_context/0]).
 -export_type([encoded_context_fragment/0]).

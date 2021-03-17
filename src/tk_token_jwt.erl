@@ -6,7 +6,7 @@
 %% API
 
 -export([issue/3]).
--export([verify/1]).
+-export([verify/2]).
 
 -export([get_token_id/1]).
 -export([get_subject_id/1]).
@@ -16,6 +16,7 @@
 -export([get_claim/2]).
 -export([get_claim/3]).
 -export([get_metadata/1]).
+-export([get_source_context/1]).
 
 -export([create_claims/2]).
 -export([set_subject_email/2]).
@@ -39,7 +40,8 @@
 }.
 
 -type metadata() :: #{
-    type := atom()
+    authority := atom(),
+    source_context => source_context()
 }.
 
 -export_type([t/0]).
@@ -58,6 +60,9 @@
 
 -type subject_id() :: binary().
 -type token_id() :: binary().
+
+%??
+-type source_context() :: tk_extractor_detect_token:token_source().
 
 -type keyset() :: #{
     keyname() => key_opts()
@@ -117,6 +122,10 @@ get_claim(ClaimName, {_TokenId, Claims, _Metadata}, Default) ->
 get_metadata({_TokenId, _Claims, Metadata}) ->
     Metadata.
 
+-spec get_source_context(t()) -> source_context().
+get_source_context({_TokenId, _Claims, Metadata}) ->
+    maps:get(source_context, Metadata).
+
 -spec create_claims(claims(), expiration()) -> claims().
 create_claims(Claims, Expiration) ->
     Claims#{?CLAIM_EXPIRES_AT => Expiration}.
@@ -173,7 +182,7 @@ sign(#{kid := KID, jwk := JWK, signer := #{} = JWS}, Claims) ->
 
 %%
 
--spec verify(token()) ->
+-spec verify(token(), source_context()) ->
     {ok, t()}
     | {error,
         {invalid_token,
@@ -184,14 +193,14 @@ sign(#{kid := KID, jwk := JWK, signer := #{} = JWS}, Claims) ->
         | {invalid_operation, term()}
         | invalid_signature}.
 
-verify(Token) ->
+verify(Token, SourceContext) ->
     try
         {_, ExpandedToken} = jose_jws:expand(Token),
         #{<<"protected">> := ProtectedHeader} = ExpandedToken,
         Header = base64url_to_map(ProtectedHeader),
         Alg = get_alg(Header),
         KID = get_kid(Header),
-        verify(KID, Alg, ExpandedToken)
+        verify(KID, Alg, ExpandedToken, SourceContext)
     catch
         %% from get_alg and get_kid
         throw:Reason ->
@@ -205,14 +214,17 @@ base64url_to_map(Base64) when is_binary(Base64) ->
     {ok, Json} = jose_base64url:decode(Base64),
     jsx:decode(Json, [return_maps]).
 
-verify(KID, Alg, ExpandedToken) ->
+verify(KID, Alg, ExpandedToken, SourceContext) ->
     case get_key_by_kid(KID) of
         #{jwk := JWK, verifier := Algs, metadata := Metadata} ->
             _ = lists:member(Alg, Algs) orelse throw({invalid_operation, Alg}),
-            verify_with_key(JWK, ExpandedToken, Metadata);
+            verify_with_key(JWK, ExpandedToken, merge_source_ctx(Metadata, SourceContext));
         undefined ->
             {error, {nonexistent_key, KID}}
     end.
+
+merge_source_ctx(Metadata, SourceContext) ->
+    Metadata#{source_context => SourceContext}.
 
 verify_with_key(JWK, ExpandedToken, Metadata) ->
     case jose_jwt:verify(JWK, ExpandedToken) of
@@ -276,13 +288,13 @@ parse_options(Options) ->
     _ = genlib_map:foreach(
         fun(KeyName, KeyOpts = #{source := Source}) ->
             Metadata = maps:get(metadata, KeyOpts),
-            Type = maps:get(type, Metadata),
+            Authority = maps:get(authority, Metadata),
             _ =
                 is_keysource(Source) orelse
                     exit({invalid_source, KeyName, Source}),
             _ =
-                is_atom(Type) orelse
-                    exit({invalid_type, KeyName, Type})
+                is_atom(Authority) orelse
+                    exit({invalid_authority, KeyName, Authority})
         end,
         Keyset
     ),
