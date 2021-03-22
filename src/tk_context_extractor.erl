@@ -18,7 +18,7 @@
     user_realm => binary()
 }.
 
--type extracted_context() :: {context_fragment(), tk_authdata:metadata() | undefined}.
+-type extracted_context() :: {context_fragment(), tk_authority:metadata() | undefined}.
 
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
 -type context_fragment() ::

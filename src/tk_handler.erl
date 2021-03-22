@@ -39,7 +39,8 @@ do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
         {ok, TokenInfo} ->
             State1 = save_pulse_metadata(#{token => TokenInfo}, State),
-            case tk_authdata:from_token(TokenInfo) of
+            Authority = get_token_authority(TokenInfo),
+            case tk_authority:get_authdata_by_token(TokenInfo, Authority) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
                     _ = handle_beat(Op, succeeded, State1),
@@ -81,6 +82,18 @@ decode_source_context(TokenSourceContext) ->
     genlib_map:compact(#{
         request_origin => TokenSourceContext#token_keeper_TokenSourceContext.request_origin
     }).
+
+%%
+
+get_token_authority(TokenInfo) ->
+    AuthorityID = tk_token_jwt:get_authority(TokenInfo),
+    Authorities = application:get_env(token_keeper, authorities, #{}),
+    case maps:get(AuthorityID, Authorities, undefined) of
+        Config when Config =/= undefined ->
+            Config;
+        undefined ->
+            throw({misconfiguration, {no_such_authority, AuthorityID}})
+    end.
 
 %%
 

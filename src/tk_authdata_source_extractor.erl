@@ -9,7 +9,7 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), tk_authdata_source:source_opts()) -> tk_authdata:authdata() | undefined.
+-spec get_authdata(tk_token_jwt:t(), tk_authdata_source:source_opts()) -> tk_authority:authdata() | undefined.
 get_authdata(Token, Opts) ->
     Methods = get_extractor_methods(Opts),
     case extract_context_with(Methods, Token) of
@@ -39,8 +39,7 @@ make_auth_data(ContextFragment, Metadata, SourceOpts) ->
     genlib_map:compact(#{
         status => active,
         context => encode_context_fragment(ContextFragment),
-        metadata => wrap_metadata(Metadata, SourceOpts),
-        authority => get_authority(SourceOpts)
+        metadata => wrap_metadata(Metadata, SourceOpts)
     }).
 
 wrap_metadata(undefined, _SourceOpts) ->
@@ -64,9 +63,6 @@ encode_context_fragment_content(ContextFragment) ->
         {ok, Codec1} ->
             thrift_strict_binary_codec:close(Codec1)
     end.
-
-get_authority(SourceOpts) ->
-    maps:get(authority, SourceOpts).
 
 get_method_opts({_Method, _Opts} = MethodOpts) ->
     MethodOpts;

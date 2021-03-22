@@ -97,6 +97,7 @@ init_per_group(detect_token_type = Name, C) ->
         }},
         {authorities, #{
             keycloak => #{
+                id => ?TK_AUTHORITY_KEYCLOAK,
                 authdata_sources => [
                     storage,
                     {extract, #{
@@ -107,8 +108,7 @@ init_per_group(detect_token_type = Name, C) ->
                                 user_realm => <<"external">>
                             }}
                         ],
-                        metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER,
-                        authority => ?TK_AUTHORITY_KEYCLOAK
+                        metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
                     }}
                 ]
             }
@@ -127,10 +127,10 @@ init_per_group(claim_only = Name, C) ->
         }},
         {authorities, #{
             claim_only => #{
+                id => ?TK_AUTHORITY_KEYCLOAK,
                 authdata_sources => [
                     {extract, #{
-                        methods => [claim],
-                        authority => ?TK_AUTHORITY_KEYCLOAK
+                        methods => [claim]
                     }}
                 ]
             }
