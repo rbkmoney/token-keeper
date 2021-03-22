@@ -8,7 +8,6 @@
 
 -type metadata() :: #{
     token => tk_token_jwt:t(),
-    source => token_keeper:token_source(),
     woody_ctx => woody_context:ctx()
 }.
 

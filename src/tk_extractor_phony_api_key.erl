@@ -1,4 +1,4 @@
--module(tk_extractor_api_key_token).
+-module(tk_extractor_phony_api_key).
 -behaviour(tk_context_extractor).
 
 -export([get_context/2]).

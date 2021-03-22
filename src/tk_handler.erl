@@ -38,7 +38,7 @@ do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
     case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
         {ok, TokenInfo} ->
-            State1 = save_pulse_metadata(#{token => TokenInfo, source => TokenSourceContextDecoded}, State),
+            State1 = save_pulse_metadata(#{token => TokenInfo}, State),
             case tk_authdata:from_token(TokenInfo) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),

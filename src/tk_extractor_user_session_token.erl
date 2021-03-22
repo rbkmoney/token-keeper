@@ -30,8 +30,7 @@ get_context(Token, ExtractorOpts) ->
     {Acc2,
         genlib_map:compact(#{
             <<"user_id">> => UserID,
-            <<"email">> => Email,
-            <<"name">> => tk_token_jwt:get_claim(<<"name">>, Token, undefined)
+            <<"user_email">> => Email
         })}.
 
 %% Internal functions

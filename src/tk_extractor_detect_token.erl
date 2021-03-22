@@ -33,7 +33,7 @@ determine_token_type(#{request_origin := Origin}, UserTokenOrigins) ->
         true ->
             user_session_token;
         false ->
-            api_key_token
+            phony_api_key
     end;
 determine_token_type(#{}, _UserTokenOrigins) ->
-    api_key_token.
+    phony_api_key.

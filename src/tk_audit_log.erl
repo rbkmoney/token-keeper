@@ -240,10 +240,11 @@ extract_opt_meta(K, Metadata, EncodeFun, Acc) ->
         error -> Acc
     end.
 
-encode_token({JTI, Claims, TokenMetadata}) ->
+encode_token({JTI, Claims, Authority, TokenMetadata}) ->
     #{
         jti => JTI,
         claims => Claims,
+        authority => Authority,
         metadata => TokenMetadata
     }.
 

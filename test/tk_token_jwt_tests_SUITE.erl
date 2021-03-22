@@ -42,17 +42,11 @@ init_per_suite(Config) ->
                             path => <<"/v1/token-keeper">>
                         }
                     }},
-                    {tokens, #{
-                        jwt => #{
-                            keyset => #{
-                                test => #{
-                                    source => {pem_file, get_keysource("keys/local/private.pem", Config)},
-                                    metadata => #{
-                                        authority => <<"TEST">>,
-                                        auth_method => user_session_token,
-                                        user_realm => <<"external">>
-                                    }
-                                }
+                    {jwt, #{
+                        keyset => #{
+                            test => #{
+                                source => {pem_file, get_keysource("keys/local/private.pem", Config)},
+                                authority => test
                             }
                         }
                     }}
@@ -71,7 +65,7 @@ verify_test(_) ->
     JTI = unique_id(),
     PartyID = <<"TEST">>,
     {ok, Token} = issue_token(JTI, #{<<"sub">> => PartyID, <<"TEST">> => <<"TEST">>}, unlimited),
-    {ok, {JTI, #{<<"sub">> := PartyID, <<"TEST">> := <<"TEST">>}, #{}}} = tk_token_jwt:verify(Token, #{}).
+    {ok, {JTI, #{<<"sub">> := PartyID, <<"TEST">> := <<"TEST">>}, test, #{}}} = tk_token_jwt:verify(Token, #{}).
 
 -spec bad_token_test(config()) -> _.
 bad_token_test(Config) ->

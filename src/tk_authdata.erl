@@ -50,8 +50,7 @@ from_token(Token) ->
 %%
 
 get_token_authority(Token) ->
-    Metadata = tk_token_jwt:get_metadata(Token),
-    maps:get(authority, Metadata).
+    tk_token_jwt:get_authority(Token).
 
 get_auth_data_sources(Authority) ->
     AuthorityConfig = get_authority_config(Authority),

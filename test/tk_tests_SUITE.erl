@@ -36,7 +36,7 @@
 -define(METADATA(Authority, Metadata), #{Authority := Metadata}).
 -define(PARTY_METADATA(Authority, SubjectID), ?METADATA(Authority, #{<<"party_id">> := SubjectID})).
 -define(USER_METADATA(Authority, SubjectID, Email),
-    ?METADATA(Authority, #{<<"user_id">> := SubjectID, <<"email">> := Email})
+    ?METADATA(Authority, #{<<"user_id">> := SubjectID, <<"user_email">> := Email})
 ).
 
 -define(TOKEN_SOURCE_CONTEXT(), ?TOKEN_SOURCE_CONTEXT(<<"http://spanish.inquisition">>)).
@@ -91,9 +91,7 @@ init_per_group(detect_token_type = Name, C) ->
             keyset => #{
                 test => #{
                     source => {pem_file, get_keysource("keys/local/private.pem", C)},
-                    metadata => #{
-                        authority => keycloak
-                    }
+                    authority => keycloak
                 }
             }
         }},
@@ -123,9 +121,7 @@ init_per_group(claim_only = Name, C) ->
             keyset => #{
                 test => #{
                     source => {pem_file, get_keysource("keys/local/private.pem", C)},
-                    metadata => #{
-                        authority => claim_only
-                    }
+                    authority => claim_only
                 }
             }
         }},
@@ -147,7 +143,7 @@ init_per_group(Name, C) ->
 -spec end_per_group(group_name(), config()) -> _.
 end_per_group(GroupName, C) when
     GroupName =:= detect_token_type;
-    GroupName =:= no_token_metadata
+    GroupName =:= claim_only
 ->
     ok = stop_keeper(C),
     ok;

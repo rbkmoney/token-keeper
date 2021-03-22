@@ -45,7 +45,7 @@ get_extractor_handler(claim) ->
     tk_extractor_claim;
 get_extractor_handler(detect_token) ->
     tk_extractor_detect_token;
-get_extractor_handler(api_key_token) ->
-    tk_extractor_api_key_token;
+get_extractor_handler(phony_api_key) ->
+    tk_extractor_phony_api_key;
 get_extractor_handler(user_session_token) ->
     tk_extractor_user_session_token.
