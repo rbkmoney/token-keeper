@@ -16,10 +16,9 @@
 
 -type authdata() :: #{
     id => id(),
-    token => binary(),
     status := status(),
     context := encoded_context_fragment(),
-    authority => autority_id(),
+    authority := autority_id(),
     metadata => metadata()
 }.
 
@@ -48,7 +47,7 @@ get_authdata_by_token(Token, Authority) ->
     AuthDataSources = get_auth_data_sources(Authority),
     case get_authdata_from_sources(AuthDataSources, Token) of
         AuthData when AuthData =/= undefined ->
-            {ok, maybe_add_authority_id(AuthData, Authority)};
+            {ok, add_authority_id(AuthData, Authority)};
         undefined ->
             {error, {authdata_not_found, AuthDataSources}}
     end.
@@ -74,9 +73,7 @@ get_authdata_from_sources([SourceOpts | Rest], Token) ->
             get_authdata_from_sources(Rest, Token)
     end.
 
-maybe_add_authority_id(#{authority := _} = AuthData, _Authority) ->
-    AuthData;
-maybe_add_authority_id(AuthData, Authority) ->
+add_authority_id(AuthData, Authority) ->
     AuthData#{authority => maps:get(id, Authority)}.
 
 get_source_opts({_Source, _Opts} = SourceOpts) ->

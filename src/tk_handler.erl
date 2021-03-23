@@ -72,7 +72,7 @@ encode_auth_data(AuthData) ->
         id = maps:get(id, AuthData, undefined),
         token = maps:get(token, AuthData),
         %% Assume active?
-        status = maps:get(status, AuthData, active),
+        status = maps:get(status, AuthData),
         context = maps:get(context, AuthData),
         metadata = maps:get(metadata, AuthData, #{}),
         authority = maps:get(authority, AuthData)

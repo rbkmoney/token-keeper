@@ -9,7 +9,8 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), tk_authdata_source:source_opts()) -> tk_authority:authdata() | undefined.
+-spec get_authdata(tk_token_jwt:t(), tk_authdata_source:source_opts()) ->
+    tk_authdata_source:stored_authdata() | undefined.
 get_authdata(Token, Opts) ->
     Methods = get_extractor_methods(Opts),
     case extract_context_with(Methods, Token) of

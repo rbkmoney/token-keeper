@@ -2,7 +2,7 @@
 
 %% Behaviour
 
--callback get_authdata(tk_token_jwt:t(), source_opts()) -> tk_authority:authdata() | undefined.
+-callback get_authdata(tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
 
 %% API functions
 
@@ -19,13 +19,21 @@
     metadata_ns => binary()
 }.
 
+-type stored_authdata() :: #{
+    id => tk_authority:id(),
+    status := tk_authority:status(),
+    context := tk_authority:encoded_context_fragment(),
+    metadata => tk_authority:metadata()
+}.
+
 -export_type([authdata_source/0]).
 -export_type([token_source/0]).
 -export_type([source_opts/0]).
+-export_type([stored_authdata/0]).
 
 %% API functions
 
--spec get_authdata(token_source(), tk_token_jwt:t(), source_opts()) -> tk_authority:authdata() | undefined.
+-spec get_authdata(token_source(), tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
 get_authdata(Source, Token, Opts) ->
     Hander = get_source_handler(Source),
     Hander:get_authdata(Token, Opts).
