@@ -102,7 +102,6 @@ init_per_group(detect_token_type = Name, C) ->
                     storage,
                     {extract, #{
                         methods => [
-                            claim,
                             {detect_token, #{
                                 user_session_token_origins => [?USER_TOKEN_SOURCE],
                                 user_realm => <<"external">>
@@ -130,7 +129,8 @@ init_per_group(claim_only = Name, C) ->
                 id => ?TK_AUTHORITY_KEYCLOAK,
                 authdata_sources => [
                     {extract, #{
-                        methods => [claim]
+                        methods => [claim],
+                        metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
                     }}
                 ]
             }
@@ -253,7 +253,7 @@ bouncer_context_from_claims_test(C) ->
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({claim_token, JTI}, AuthData#token_keeper_AuthData.context)),
-    ?assertEqual(#{}, AuthData#token_keeper_AuthData.metadata),
+    ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 %%

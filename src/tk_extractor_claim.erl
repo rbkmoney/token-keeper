@@ -16,12 +16,22 @@ get_context(Token, _ExtractorOpts) ->
     Claims = tk_token_jwt:get_claims(Token),
     case get_claim(Claims) of
         {ok, ClaimFragment} ->
-            {ClaimFragment, undefined};
+            {ClaimFragment, get_metadata(Token)};
         undefined ->
             undefined
     end.
 
 %% Internal functions
+
+get_metadata(Token) ->
+    %% @NOTE: This is a temporary hack.
+    %% When some external services will stop requiring woody user identity to be present it must be removed too
+    case tk_token_jwt:get_subject_id(Token) of
+        UserID when UserID =/= undefined ->
+            #{<<"party_id">> => UserID};
+        undefined ->
+            undefined
+    end.
 
 -define(CLAIM_BOUNCER_CTX, <<"bouncer_ctx">>).
 -define(CLAIM_CTX_TYPE, <<"ty">>).
