@@ -30,14 +30,20 @@
 
 -define(CONFIG(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
 
--define(TK_AUTHORITY_TOKEN_KEEPER, <<"com.rbkmoney.token-keeper">>).
--define(TK_AUTHORITY_KEYCLOAK, <<"com.rbkmoney.keycloak">>).
+-define(TK_META_NS_KEYCLOAK, <<"test.rbkmoney.token-keeper">>).
+-define(TK_META_NS_APIKEYMGMT, <<"test.rbkmoney.apikeymgmt">>).
+
+-define(TK_AUTHORITY_KEYCLOAK, <<"test.rbkmoney.keycloak">>).
+-define(TK_AUTHORITY_CAPI, <<"test.rbkmoney.capi">>).
+
+-define(TK_META_NS_DETECTOR, <<"test.rbkmoney.token-keeper.detector">>).
 
 -define(METADATA(Authority, Metadata), #{Authority := Metadata}).
 -define(PARTY_METADATA(Authority, SubjectID), ?METADATA(Authority, #{<<"party_id">> := SubjectID})).
 -define(USER_METADATA(Authority, SubjectID, Email),
     ?METADATA(Authority, #{<<"user_id">> := SubjectID, <<"user_email">> := Email})
 ).
+-define(DETECTOR_METADATA(Class), ?METADATA(?TK_META_NS_DETECTOR, #{<<"class">> := Class})).
 
 -define(TOKEN_SOURCE_CONTEXT(), ?TOKEN_SOURCE_CONTEXT(<<"http://spanish.inquisition">>)).
 -define(TOKEN_SOURCE_CONTEXT(SourceURL), #token_keeper_TokenSourceContext{request_origin = SourceURL}).
@@ -103,11 +109,17 @@ init_per_group(detect_token_type = Name, C) ->
                     {extract, #{
                         methods => [
                             {detect_token, #{
+                                phony_api_key_opts => #{
+                                    metadata_ns => ?TK_META_NS_APIKEYMGMT
+                                },
+                                user_session_token_opts => #{
+                                    user_realm => <<"external">>,
+                                    metadata_ns => ?TK_META_NS_KEYCLOAK
+                                },
                                 user_session_token_origins => [?USER_TOKEN_SOURCE],
-                                user_realm => <<"external">>
+                                metadata_ns => ?TK_META_NS_DETECTOR
                             }}
-                        ],
-                        metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
+                        ]
                     }}
                 ]
             }
@@ -126,11 +138,14 @@ init_per_group(claim_only = Name, C) ->
         }},
         {authorities, #{
             claim_only => #{
-                id => ?TK_AUTHORITY_KEYCLOAK,
+                id => ?TK_AUTHORITY_CAPI,
                 authdata_sources => [
                     {extract, #{
-                        methods => [claim],
-                        metadata_ns => ?TK_AUTHORITY_TOKEN_KEEPER
+                        methods => [
+                            {claim, #{
+                                metadata_ns => ?TK_META_NS_APIKEYMGMT
+                            }}
+                        ]
                     }}
                 ]
             }
@@ -196,11 +211,13 @@ detect_api_key_test(C) ->
     SubjectID = <<"TEST">>,
     {ok, Token} = issue_token(JTI, #{<<"sub">> => SubjectID}, unlimited),
     AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
+    _ = ct:pal("~p", [AuthData]),
     ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
-    ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assertMatch(?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assertMatch(?DETECTOR_METADATA(<<"phony_api_key">>), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_user_session_token_test(config()) -> ok.
@@ -211,6 +228,7 @@ detect_user_session_token_test(C) ->
     SubjectEmail = <<"test@test.test">>,
     {ok, Token} = issue_token(JTI, #{<<"sub">> => SubjectID, <<"email">> => SubjectEmail}, unlimited),
     AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(?USER_TOKEN_SOURCE), Client),
+    _ = ct:pal("~p", [AuthData]),
     ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
@@ -221,9 +239,10 @@ detect_user_session_token_test(C) ->
         )
     ),
     ?assertMatch(
-        ?USER_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID, SubjectEmail),
+        ?USER_METADATA(?TK_META_NS_KEYCLOAK, SubjectID, SubjectEmail),
         AuthData#token_keeper_AuthData.metadata
     ),
+    ?assertMatch(?DETECTOR_METADATA(<<"user_session_token">>), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_dummy_token_test(config()) -> ok.
@@ -249,12 +268,14 @@ bouncer_context_from_claims_test(C) ->
     SubjectID = <<"TEST">>,
     {ok, Token} = issue_token_with_context(JTI, SubjectID),
     AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
+    _ = ct:pal("~p", [AuthData]),
     ?assertEqual(undefined, AuthData#token_keeper_AuthData.id),
     ?assertEqual(Token, AuthData#token_keeper_AuthData.token),
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({claim_token, JTI}, AuthData#token_keeper_AuthData.context)),
-    ?assertMatch(?PARTY_METADATA(?TK_AUTHORITY_TOKEN_KEEPER, SubjectID), AuthData#token_keeper_AuthData.metadata),
-    ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
+    ?assertMatch(?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID), AuthData#token_keeper_AuthData.metadata),
+    ?assertNotMatch(?DETECTOR_METADATA(_), AuthData#token_keeper_AuthData.metadata),
+    ?assertEqual(?TK_AUTHORITY_CAPI, AuthData#token_keeper_AuthData.authority).
 
 %%
 

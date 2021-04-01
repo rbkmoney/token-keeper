@@ -13,10 +13,11 @@
 -type methods() :: [{method(), extractor_opts()} | method()].
 -type method() :: claim | detect_token | api_key_token | user_session_token.
 
--type extractor_opts() :: #{
-    user_session_token_origins => list(binary()),
-    user_realm => binary()
-}.
+-type extractor_opts() ::
+    tk_extractor_claim:extractor_opts()
+    | tk_extractor_detect_token:extractor_opts()
+    | tk_extractor_phony_api_key:extractor_opts()
+    | tk_extractor_user_session_token:extractor_opts().
 
 -type extracted_context() :: {context_fragment(), tk_authority:metadata() | undefined}.
 

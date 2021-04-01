@@ -15,7 +15,7 @@ get_authdata(Token, Opts) ->
     Methods = get_extractor_methods(Opts),
     case extract_context_with(Methods, Token) of
         {Context, Metadata} ->
-            make_auth_data(Context, Metadata, Opts);
+            make_auth_data(Context, Metadata);
         undefined ->
             undefined
     end.
@@ -36,18 +36,12 @@ extract_context_with([MethodOpts | Rest], Token) ->
             extract_context_with(Rest, Token)
     end.
 
-make_auth_data(ContextFragment, Metadata, SourceOpts) ->
+make_auth_data(ContextFragment, Metadata) ->
     genlib_map:compact(#{
         status => active,
         context => encode_context_fragment(ContextFragment),
-        metadata => wrap_metadata(Metadata, SourceOpts)
+        metadata => Metadata
     }).
-
-wrap_metadata(undefined, _SourceOpts) ->
-    undefined;
-wrap_metadata(Metadata, SourceOpts) ->
-    MetadataNS = maps:get(metadata_ns, SourceOpts),
-    #{MetadataNS => Metadata}.
 
 encode_context_fragment({encoded_context_fragment, ContextFragment}) ->
     ContextFragment;

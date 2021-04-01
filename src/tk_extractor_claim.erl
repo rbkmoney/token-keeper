@@ -5,18 +5,25 @@
 
 -export([get_context/2]).
 
+%%
+
+-type extractor_opts() :: #{
+    metadata_ns := binary()
+}.
+
+-export_type([extractor_opts/0]).
+
 %% API functions
 
--spec get_context(tk_token_jwt:t(), tk_context_extractor:extractor_opts()) ->
-    tk_context_extractor:extracted_context() | undefined.
-get_context(Token, _ExtractorOpts) ->
+-spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_context_extractor:extracted_context() | undefined.
+get_context(Token, ExtractorOpts) ->
     % TODO
     % We deliberately do not handle decoding errors here since we extract claims from verified
     % tokens only, hence they must be well-formed here.
     Claims = tk_token_jwt:get_claims(Token),
     case get_claim(Claims) of
         {ok, ClaimFragment} ->
-            {ClaimFragment, get_metadata(Token)};
+            {ClaimFragment, wrap_metadata(get_metadata(Token), ExtractorOpts)};
         undefined ->
             undefined
     end.
@@ -24,7 +31,7 @@ get_context(Token, _ExtractorOpts) ->
 %% Internal functions
 
 get_metadata(Token) ->
-    %% @NOTE: This is a temporary hack.
+    %% @TEMP: This is a temporary hack.
     %% When some external services will stop requiring woody user identity to be present it must be removed too
     case tk_token_jwt:get_subject_id(Token) of
         UserID when UserID =/= undefined ->
@@ -32,6 +39,12 @@ get_metadata(Token) ->
         undefined ->
             undefined
     end.
+
+wrap_metadata(undefined, _ExtractorOpts) ->
+    undefined;
+wrap_metadata(Metadata, ExtractorOpts) ->
+    MetadataNS = maps:get(metadata_ns, ExtractorOpts),
+    #{MetadataNS => Metadata}.
 
 -define(CLAIM_BOUNCER_CTX, <<"bouncer_ctx">>).
 -define(CLAIM_CTX_TYPE, <<"ty">>).

@@ -3,10 +3,18 @@
 
 -export([get_context/2]).
 
+%%
+
+-type extractor_opts() :: #{
+    metadata_ns := binary()
+}.
+
+-export_type([extractor_opts/0]).
+
 %% API functions
 
--spec get_context(tk_token_jwt:t(), tk_context_extractor:extractor_opts()) -> tk_context_extractor:extracted_context().
-get_context(Token, _ExtractorOpts) ->
+-spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_context_extractor:extracted_context().
+get_context(Token, ExtractorOpts) ->
     UserID = tk_token_jwt:get_subject_id(Token),
     Acc0 = bouncer_context_helpers:empty(),
     Acc1 = bouncer_context_helpers:add_auth(
@@ -17,4 +25,10 @@ get_context(Token, _ExtractorOpts) ->
         },
         Acc0
     ),
-    {Acc1, #{<<"party_id">> => UserID}}.
+    {Acc1, wrap_metadata(#{<<"party_id">> => UserID}, ExtractorOpts)}.
+
+%%
+
+wrap_metadata(Metadata, ExtractorOpts) ->
+    MetadataNS = maps:get(metadata_ns, ExtractorOpts),
+    #{MetadataNS => Metadata}.

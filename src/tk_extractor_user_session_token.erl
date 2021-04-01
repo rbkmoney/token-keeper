@@ -3,9 +3,18 @@
 
 -export([get_context/2]).
 
+%%
+
+-type extractor_opts() :: #{
+    metadata_ns := binary(),
+    user_realm := binary()
+}.
+
+-export_type([extractor_opts/0]).
+
 %% API functions
 
--spec get_context(tk_token_jwt:t(), tk_context_extractor:extractor_opts()) -> tk_context_extractor:extracted_context().
+-spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_context_extractor:extracted_context().
 get_context(Token, ExtractorOpts) ->
     UserID = tk_token_jwt:get_subject_id(Token),
     Email = tk_token_jwt:get_subject_email(Token),
@@ -28,10 +37,13 @@ get_context(Token, ExtractorOpts) ->
         Acc1
     ),
     {Acc2,
-        genlib_map:compact(#{
-            <<"user_id">> => UserID,
-            <<"user_email">> => Email
-        })}.
+        wrap_metadata(
+            genlib_map:compact(#{
+                <<"user_id">> => UserID,
+                <<"user_email">> => Email
+            }),
+            ExtractorOpts
+        )}.
 
 %% Internal functions
 
@@ -39,3 +51,7 @@ make_auth_expiration(Timestamp) when is_integer(Timestamp) ->
     genlib_rfc3339:format(Timestamp, second);
 make_auth_expiration(unlimited) ->
     undefined.
+
+wrap_metadata(Metadata, ExtractorOpts) ->
+    MetadataNS = maps:get(metadata_ns, ExtractorOpts),
+    #{MetadataNS => Metadata}.

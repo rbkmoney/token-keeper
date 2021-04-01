@@ -15,8 +15,7 @@
 -type token_source() :: storage | extractor.
 
 -type source_opts() :: #{
-    methods => tk_context_extractor:methods(),
-    metadata_ns => binary()
+    methods => tk_context_extractor:methods()
 }.
 
 -type stored_authdata() :: #{
