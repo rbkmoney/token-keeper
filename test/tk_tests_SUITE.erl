@@ -36,14 +36,11 @@
 -define(TK_AUTHORITY_KEYCLOAK, <<"test.rbkmoney.keycloak">>).
 -define(TK_AUTHORITY_CAPI, <<"test.rbkmoney.capi">>).
 
--define(TK_META_NS_DETECTOR, <<"test.rbkmoney.token-keeper.detector">>).
-
 -define(METADATA(Authority, Metadata), #{Authority := Metadata}).
 -define(PARTY_METADATA(Authority, SubjectID), ?METADATA(Authority, #{<<"party_id">> := SubjectID})).
 -define(USER_METADATA(Authority, SubjectID, Email),
     ?METADATA(Authority, #{<<"user_id">> := SubjectID, <<"user_email">> := Email})
 ).
--define(DETECTOR_METADATA(Class), ?METADATA(?TK_META_NS_DETECTOR, #{<<"class">> := Class})).
 
 -define(TOKEN_SOURCE_CONTEXT(), ?TOKEN_SOURCE_CONTEXT(<<"http://spanish.inquisition">>)).
 -define(TOKEN_SOURCE_CONTEXT(SourceURL), #token_keeper_TokenSourceContext{request_origin = SourceURL}).
@@ -116,8 +113,7 @@ init_per_group(detect_token_type = Name, C) ->
                                     user_realm => <<"external">>,
                                     metadata_ns => ?TK_META_NS_KEYCLOAK
                                 },
-                                user_session_token_origins => [?USER_TOKEN_SOURCE],
-                                metadata_ns => ?TK_META_NS_DETECTOR
+                                user_session_token_origins => [?USER_TOKEN_SOURCE]
                             }}
                         ]
                     }}
@@ -217,7 +213,6 @@ detect_api_key_test(C) ->
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({api_key_token, JTI, SubjectID}, AuthData#token_keeper_AuthData.context)),
     ?assertMatch(?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID), AuthData#token_keeper_AuthData.metadata),
-    ?assertMatch(?DETECTOR_METADATA(<<"phony_api_key">>), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_user_session_token_test(config()) -> ok.
@@ -242,7 +237,6 @@ detect_user_session_token_test(C) ->
         ?USER_METADATA(?TK_META_NS_KEYCLOAK, SubjectID, SubjectEmail),
         AuthData#token_keeper_AuthData.metadata
     ),
-    ?assertMatch(?DETECTOR_METADATA(<<"user_session_token">>), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_KEYCLOAK, AuthData#token_keeper_AuthData.authority).
 
 -spec detect_dummy_token_test(config()) -> ok.
@@ -274,7 +268,6 @@ bouncer_context_from_claims_test(C) ->
     ?assertEqual(active, AuthData#token_keeper_AuthData.status),
     ?assert(assert_context({claim_token, JTI}, AuthData#token_keeper_AuthData.context)),
     ?assertMatch(?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID), AuthData#token_keeper_AuthData.metadata),
-    ?assertNotMatch(?DETECTOR_METADATA(_), AuthData#token_keeper_AuthData.metadata),
     ?assertEqual(?TK_AUTHORITY_CAPI, AuthData#token_keeper_AuthData.authority).
 
 %%
