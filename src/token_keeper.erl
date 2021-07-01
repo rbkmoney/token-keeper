@@ -4,7 +4,6 @@
 -behaviour(application).
 
 -export([start/2]).
--export([prep_stop/1]).
 -export([stop/1]).
 
 %% Supervisor callbacks
@@ -37,14 +36,6 @@
 start(_StartType, _StartArgs) ->
     token_keeper:start_link().
 
--spec prep_stop(State) -> State.
-prep_stop(State) ->
-    % NOTE
-    % We have to do it in this magic `prep_stop/1` here because for some inexplicable reason the
-    % usual `stop/1` callback doesn't get called in common_test runs.
-    ok = tk_audit_log:stop(genlib_app:env(?MODULE, audit, #{})),
-    State.
-
 -spec stop(any()) -> ok.
 stop(_State) ->
     ok.
@@ -59,7 +50,7 @@ start_link() ->
 
 -spec init(Args :: term()) -> genlib_gen:supervisor_ret().
 init([]) ->
-    AuditPulse = tk_audit_log:init(genlib_app:env(?MODULE, audit, #{})),
+    {AuditChildSpecs, AuditPulse} = get_audit_specs(),
     ServiceOpts = genlib_app:env(?MODULE, services, #{}),
     EventHandlers = genlib_app:env(?MODULE, woody_event_handlers, [woody_event_handler_default]),
     Healthcheck = enable_health_logging(genlib_app:env(?MODULE, health_check, #{})),
@@ -81,7 +72,7 @@ init([]) ->
     {ok,
         {
             #{strategy => one_for_all, intensity => 6, period => 30},
-            [HandlerChildSpec, TokensChildSpec]
+            [HandlerChildSpec, TokensChildSpec | AuditChildSpecs]
         }}.
 
 -spec get_ip_address() -> inet:ip_address().
@@ -122,6 +113,17 @@ get_handler_specs(ServiceOpts, AuditPulse) ->
             {{tk_token_keeper_thrift, 'TokenKeeper'}, {tk_handler, TokenKeeperOpts}}
         }
     ].
+
+-spec get_audit_specs() -> {[supervisor:child_spec()], tk_pulse:handlers()}.
+get_audit_specs() ->
+    Opts = genlib_app:env(?MODULE, audit, #{}),
+    case maps:get(log, Opts, #{}) of
+        LogOpts = #{} ->
+            {ok, ChildSpec, Pulse} = tk_audit_log:child_spec(LogOpts),
+            {[ChildSpec], [Pulse]};
+        disable ->
+            {[], []}
+    end.
 
 %%
 
