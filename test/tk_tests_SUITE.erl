@@ -517,10 +517,5 @@ encode_context_fragment_content(ContextFragment) ->
 
 get_resource_hierarchy() ->
     #{
-        party => #{invoice_templates => #{invoice_template_invoices => #{}}},
-        customers => #{bindings => #{}},
-        invoices => #{payments => #{}},
-        payment_resources => #{},
-        payouts => #{},
-        card_bins => #{}
+        party => #{invoice_templates => #{invoice_template_invoices => #{}}}
     }.
