@@ -180,7 +180,6 @@ init_per_group(invoice_template_access_token = Name, C) ->
                             }},
                             {invoice_template_access_token, #{
                                 domain => ?TK_RESOURCE_DOMAIN,
-                                resource_hierarchy => get_resource_hierarchy(),
                                 metadata_ns => ?TK_META_NS_APIKEYMGMT
                             }}
                         ]
@@ -514,8 +513,3 @@ encode_context_fragment_content(ContextFragment) ->
         {ok, Codec1} ->
             thrift_strict_binary_codec:close(Codec1)
     end.
-
-get_resource_hierarchy() ->
-    #{
-        party => #{invoice_templates => #{invoice_template_invoices => #{}}}
-    }.

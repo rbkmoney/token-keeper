@@ -13,7 +13,6 @@
 
 -type extractor_opts() :: #{
     domain := binary(),
-    resource_hierarchy := map(),
     metadata_ns := binary()
 }.
 
@@ -47,8 +46,7 @@ get_metadata(Token) ->
 
 extract_invoice_template_rights(TokenContext, ExtractorOpts) ->
     Domain = maps:get(domain, ExtractorOpts),
-    Hierarchy = maps:get(resource_hierarchy, ExtractorOpts),
-    case get_acl(Domain, Hierarchy, TokenContext) of
+    case get_acl(Domain, get_resource_hierarchy(), TokenContext) of
         {ok, TokenACL} ->
             match_invoice_template_acl(TokenACL);
         {error, Reason} ->
@@ -122,6 +120,11 @@ create_bouncer_ctx(TokenID, UserID, InvoiceTemplateID) ->
 wrap_metadata(Metadata, ExtractorOpts) ->
     MetadataNS = maps:get(metadata_ns, ExtractorOpts),
     #{MetadataNS => Metadata}.
+
+get_resource_hierarchy() ->
+    #{
+        party => #{invoice_templates => #{invoice_template_invoices => #{}}}
+    }.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
