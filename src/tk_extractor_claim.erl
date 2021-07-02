@@ -20,8 +20,7 @@ get_context(Token, ExtractorOpts) ->
     % TODO
     % We deliberately do not handle decoding errors here since we extract claims from verified
     % tokens only, hence they must be well-formed here.
-    Claims = tk_token_jwt:get_claims(Token),
-    case get_claim(Claims) of
+    case get_bouncer_claim(Token) of
         {ok, ClaimFragment} ->
             {ClaimFragment, wrap_metadata(get_metadata(Token), ExtractorOpts)};
         undefined ->
@@ -31,20 +30,24 @@ get_context(Token, ExtractorOpts) ->
 %% Internal functions
 
 get_metadata(Token) ->
+    Metadata = maps:with(get_passthrough_claim_names(), tk_token_jwt:get_claims(Token)),
     %% @TEMP: This is a temporary hack.
     %% When some external services will stop requiring woody user identity to be present it must be removed too
-    case tk_token_jwt:get_subject_id(Token) of
-        UserID when UserID =/= undefined ->
-            #{<<"party_id">> => UserID};
-        undefined ->
-            undefined
-    end.
+    genlib_map:compact(Metadata#{
+        <<"party_id">> => tk_token_jwt:get_subject_id(Token)
+    }).
 
-wrap_metadata(undefined, _ExtractorOpts) ->
+wrap_metadata(Metadata, _ExtractorOpts) when map_size(Metadata) =:= 0->
     undefined;
 wrap_metadata(Metadata, ExtractorOpts) ->
     MetadataNS = maps:get(metadata_ns, ExtractorOpts),
     #{MetadataNS => Metadata}.
+
+get_passthrough_claim_names() ->
+    [
+        %% token consumer
+        <<"cons">>
+    ].
 
 -define(CLAIM_BOUNCER_CTX, <<"bouncer_ctx">>).
 -define(CLAIM_CTX_TYPE, <<"ty">>).
@@ -53,23 +56,22 @@ wrap_metadata(Metadata, ExtractorOpts) ->
 -define(CLAIM_CTX_TYPE_V1_THRIFT_BINARY, <<"v1_thrift_binary">>).
 
 -type claim() :: tk_token_jwt:claim().
--type claims() :: tk_token_jwt:claims().
 
--spec get_claim(claims()) ->
+-spec get_bouncer_claim(tk_token_jwt:t()) ->
     {ok, tk_context_extractor:context_fragment()}
     | {error, {unsupported, claim()} | {malformed, binary()}}
     | undefined.
-get_claim(Claims) ->
-    case maps:get(?CLAIM_BOUNCER_CTX, Claims, undefined) of
+get_bouncer_claim(Token) ->
+    case tk_token_jwt:get_claim(?CLAIM_BOUNCER_CTX, Token, undefined) of
         Claim when Claim /= undefined ->
-            decode_claim(Claim);
+            decode_bouncer_claim(Claim);
         undefined ->
             undefined
     end.
 
--spec decode_claim(claim()) ->
+-spec decode_bouncer_claim(claim()) ->
     {ok, tk_context_extractor:context_fragment()} | {error, {unsupported, claim()} | {malformed, binary()}}.
-decode_claim(#{
+decode_bouncer_claim(#{
     ?CLAIM_CTX_TYPE := ?CLAIM_CTX_TYPE_V1_THRIFT_BINARY,
     ?CLAIM_CTX_CONTEXT := Content
 }) ->
@@ -85,5 +87,5 @@ decode_claim(#{
         error:_ ->
             {error, {malformed, Content}}
     end;
-decode_claim(Ctx) ->
+decode_bouncer_claim(Ctx) ->
     {error, {unsupported, Ctx}}.

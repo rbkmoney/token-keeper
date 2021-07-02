@@ -23,6 +23,7 @@
 -export([detect_dummy_token_test/1]).
 -export([no_token_claim_test/1]).
 -export([bouncer_context_from_claims_test/1]).
+-export([cons_claim_passthrough_test/1]).
 -export([invoice_template_access_token_ok_test/1]).
 -export([invoice_template_access_token_no_access_test/1]).
 -export([invoice_template_access_token_invalid_access_test/1]).
@@ -75,7 +76,8 @@ groups() ->
         ]},
         {claim_only, [parallel], [
             no_token_claim_test,
-            bouncer_context_from_claims_test
+            bouncer_context_from_claims_test,
+            cons_claim_passthrough_test
         ]},
         {invoice_template_access_token, [parallel], [
             invoice_template_access_token_ok_test,
@@ -301,6 +303,22 @@ bouncer_context_from_claims_test(C) ->
     } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
     _ = assert_context({claim_token, JTI}, Context).
 
+-spec cons_claim_passthrough_test(config()) -> ok.
+cons_claim_passthrough_test(C) ->
+    Client = mk_client(C),
+    JTI = unique_id(),
+    SubjectID = <<"TEST">>,
+    {ok, Token} = issue_token_with_context(JTI, SubjectID, #{<<"cons">> => <<"client">>}),
+    #token_keeper_AuthData{
+        id = undefined,
+        token = Token,
+        status = active,
+        context = Context,
+        metadata = ?METADATA(?TK_META_NS_APIKEYMGMT, #{<<"party_id">> := SubjectID, <<"cons">> := <<"client">>}),
+        authority = ?TK_AUTHORITY_CAPI
+    } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
+    _ = assert_context({claim_token, JTI}, Context).
+
 -spec invoice_template_access_token_ok_test(config()) -> ok.
 invoice_template_access_token_ok_test(C) ->
     Client = mk_client(C),
@@ -454,6 +472,9 @@ issue_token(JTI, Claims0, Expiration) ->
     tk_token_jwt:issue(JTI, Claims, test).
 
 issue_token_with_context(JTI, SubjectID) ->
+    issue_token_with_context(JTI, SubjectID, #{}).
+
+issue_token_with_context(JTI, SubjectID, AdditionalClaims) ->
     Acc0 = bouncer_context_helpers:empty(),
     Acc1 = bouncer_context_helpers:add_auth(
         #{
@@ -465,7 +486,7 @@ issue_token_with_context(JTI, SubjectID) ->
     FragmentContent = encode_context_fragment_content(Acc1),
     issue_token(
         JTI,
-        #{
+        AdditionalClaims#{
             <<"sub">> => SubjectID,
             <<"bouncer_ctx">> => #{
                 <<"ty">> => <<"v1_thrift_binary">>,

@@ -14,9 +14,9 @@
 
 -type token_source() :: storage | extractor.
 
--type source_opts() :: #{
-    methods => tk_context_extractor:methods()
-}.
+-type source_opts() ::
+    tk_authdata_source_extractor:source_opts()
+    | tk_authdata_source_storage:source_opts().
 
 -type stored_authdata() :: #{
     id => tk_authority:id(),

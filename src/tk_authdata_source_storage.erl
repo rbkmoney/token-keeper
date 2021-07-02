@@ -5,6 +5,11 @@
 
 -export([get_authdata/2]).
 
+%%
+
+-type source_opts() :: #{}.
+-export_type([source_opts/0]).
+
 %% Behaviour functions
 
 -spec get_authdata(tk_token_jwt:t(), tk_authdata_source:source_opts()) -> undefined.
