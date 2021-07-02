@@ -37,7 +37,7 @@ get_metadata(Token) ->
         <<"party_id">> => tk_token_jwt:get_subject_id(Token)
     }).
 
-wrap_metadata(Metadata, _ExtractorOpts) when map_size(Metadata) =:= 0->
+wrap_metadata(Metadata, _ExtractorOpts) when map_size(Metadata) =:= 0 ->
     undefined;
 wrap_metadata(Metadata, ExtractorOpts) ->
     MetadataNS = maps:get(metadata_ns, ExtractorOpts),

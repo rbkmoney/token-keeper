@@ -65,8 +65,7 @@ get_auth_data_sources(Authority) ->
 get_authdata_from_sources([], _Token) ->
     undefined;
 get_authdata_from_sources([SourceOpts | Rest], Token) ->
-    {Source, Opts} = get_source_opts(SourceOpts),
-    case tk_authdata_source:get_authdata(Source, Token, Opts) of
+    case tk_authdata_source:get_authdata(SourceOpts, Token) of
         AuthData when AuthData =/= undefined ->
             AuthData;
         undefined ->
@@ -75,8 +74,3 @@ get_authdata_from_sources([SourceOpts | Rest], Token) ->
 
 add_authority_id(AuthData, Authority) ->
     AuthData#{authority => maps:get(id, Authority)}.
-
-get_source_opts({_Source, _Opts} = SourceOpts) ->
-    SourceOpts;
-get_source_opts(Source) when is_atom(Source) ->
-    {Source, #{}}.

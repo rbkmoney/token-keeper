@@ -415,18 +415,16 @@ get_service_spec(token_keeper) ->
 
 assert_context(TokenInfo, EncodedContextFragment) ->
     #bctx_v1_ContextFragment{auth = Auth, user = User} = decode_bouncer_fragment(EncodedContextFragment),
-    ?assert(assert_auth(TokenInfo, Auth)),
-    ?assert(assert_user(TokenInfo, User)).
+    _ = assert_auth(TokenInfo, Auth),
+    _ = assert_user(TokenInfo, User).
 
 assert_auth({claim_token, JTI}, Auth) ->
     ?assertEqual(<<"ClaimToken">>, Auth#bctx_v1_Auth.method),
-    ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token),
-    true;
+    ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token);
 assert_auth({api_key_token, JTI, SubjectID}, Auth) ->
     ?assertEqual(<<"ApiKeyToken">>, Auth#bctx_v1_Auth.method),
     ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token),
-    ?assertMatch([#bctx_v1_AuthScope{party = ?CTX_ENTITY(SubjectID)}], Auth#bctx_v1_Auth.scope),
-    true;
+    ?assertMatch([#bctx_v1_AuthScope{party = ?CTX_ENTITY(SubjectID)}], Auth#bctx_v1_Auth.scope);
 assert_auth({invoice_template_access_token, JTI, SubjectID, InvoiceTemplateID}, Auth) ->
     ?assertEqual(<<"InvoiceTemplateAccessToken">>, Auth#bctx_v1_Auth.method),
     ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token),
@@ -438,25 +436,22 @@ assert_auth({invoice_template_access_token, JTI, SubjectID, InvoiceTemplateID}, 
             }
         ],
         Auth#bctx_v1_Auth.scope
-    ),
-    true;
+    );
 assert_auth({user_session_token, JTI, _SubjectID, _SubjectEmail, Exp}, Auth) ->
     ?assertEqual(<<"SessionToken">>, Auth#bctx_v1_Auth.method),
     ?assertMatch(#bctx_v1_Token{id = JTI}, Auth#bctx_v1_Auth.token),
-    ?assertEqual(make_auth_expiration(Exp), Auth#bctx_v1_Auth.expiration),
-    true.
+    ?assertEqual(make_auth_expiration(Exp), Auth#bctx_v1_Auth.expiration).
 
 assert_user({claim_token, _}, undefined) ->
-    true;
+    ok;
 assert_user({api_key_token, _, _}, undefined) ->
-    true;
+    ok;
 assert_user({invoice_template_access_token, _, _, _}, undefined) ->
-    true;
+    ok;
 assert_user({user_session_token, _JTI, SubjectID, SubjectEmail, _Exp}, User) ->
     ?assertEqual(SubjectID, User#bctx_v1_User.id),
     ?assertEqual(SubjectEmail, User#bctx_v1_User.email),
-    ?assertEqual(?CTX_ENTITY(<<"external">>), User#bctx_v1_User.realm),
-    true.
+    ?assertEqual(?CTX_ENTITY(<<"external">>), User#bctx_v1_User.realm).
 
 %%
 

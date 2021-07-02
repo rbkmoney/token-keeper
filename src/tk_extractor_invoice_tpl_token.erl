@@ -53,40 +53,29 @@ extract_invoice_template_rights(TokenContext, ExtractorOpts) ->
             {error, {acl, Reason}}
     end.
 
--define(MATCH(Item), fun
-    (Item) -> true;
-    (_) -> false
-end).
-
 match_invoice_template_acl(TokenACL) ->
-    Matches = match_acl(
-        [
-            ?MATCH({[party, {invoice_templates, _}], [read]}),
-            ?MATCH({[party, {invoice_templates, _}, invoice_template_invoices], [write]})
-        ],
-        TokenACL
-    ),
-    assert_acl_match(Matches).
+    Patterns = [
+        fun({[party, {invoice_templates, ID}], [read]}) -> ID end,
+        fun({[party, {invoice_templates, ID}, invoice_template_invoices], [write]}) -> ID end
+    ],
+    case match_acl(Patterns, TokenACL) of
+        [[InvoiceTemplateID], [InvoiceTemplateID]] ->
+            {ok, InvoiceTemplateID};
+        Matches ->
+            {error, {acl_mismatch, Matches}}
+    end.
 
-assert_acl_match([
-    {[party, {invoice_templates, InvoiceTemplateID}], [read]},
-    {[party, {invoice_templates, InvoiceTemplateID}, invoice_template_invoices], [write]}
-]) ->
-    {ok, InvoiceTemplateID};
-assert_acl_match(Mismatch) ->
-    {error, {acl_mismatch, Mismatch}}.
+match_acl(Patterns, TokenACL) ->
+    [match_acl_pattern(TokenACL, Pat) || Pat <- Patterns].
 
-match_acl(MatchFuns, TokenACL) ->
-    match_acl(MatchFuns, TokenACL, [], []).
+match_acl_pattern(TokenACL, Pat) ->
+    lists:usort([Match || Entry <- TokenACL, Match <- run_pattern(Entry, Pat)]).
 
-match_acl([], _TokenACL, _SearchedACL, Found) ->
-    lists:reverse(Found);
-match_acl(_MatchFuns, [], _SearchedACL, Found) ->
-    lists:reverse(Found);
-match_acl([MatchFun | MTail] = MatchFuns, [ACL | ATail], SearchedACL, Found) ->
-    case MatchFun(ACL) of
-        true -> match_acl(MTail, SearchedACL ++ ATail, [], [ACL | Found]);
-        false -> match_acl(MatchFuns, ATail, [ACL | SearchedACL], Found)
+run_pattern(Entry, Pat) when is_function(Pat, 1) ->
+    try
+        [Pat(Entry)]
+    catch
+        error:function_clause -> []
     end.
 
 get_acl(Domain, Hierarchy, TokenContext) ->
@@ -144,11 +133,9 @@ get_resource_hierarchy() ->
 -spec match_acl_base_test() -> _.
 
 match_acl_base_test() ->
-    [
-        {test_acl, 123}
-    ] = match_acl(
+    [[123]] = match_acl(
         [
-            ?MATCH({test_acl, _})
+            fun({test_acl, Int}) -> Int end
         ],
         ?TEST_ACL
     ).
@@ -156,11 +143,9 @@ match_acl_base_test() ->
 -spec match_acl_dupes_test() -> _.
 
 match_acl_dupes_test() ->
-    [
-        {doubles, 123}
-    ] = match_acl(
+    [[123, 456]] = match_acl(
         [
-            ?MATCH({doubles, _})
+            fun({doubles, Int}) -> Int end
         ],
         ?TEST_ACL
     ).
@@ -168,13 +153,10 @@ match_acl_dupes_test() ->
 -spec match_acl_order_test() -> _.
 
 match_acl_order_test() ->
-    [
-        {first, 123},
-        {second, <<"abc">>}
-    ] = match_acl(
+    [[123], [<<"abc">>]] = match_acl(
         [
-            ?MATCH({first, _}),
-            ?MATCH({second, _})
+            fun({first, Int}) -> Int end,
+            fun({second, Bin}) -> Bin end
         ],
         ?TEST_ACL
     ).
@@ -182,10 +164,10 @@ match_acl_order_test() ->
 -spec match_acl_no_match_test() -> _.
 
 match_acl_no_match_test() ->
-    [] = match_acl(
+    [[], []] = match_acl(
         [
-            ?MATCH({foo, _}),
-            ?MATCH({bar, _, _})
+            fun({foo, _}) -> wait end,
+            fun({bar, _, _}) -> no end
         ],
         ?TEST_ACL
     ).
