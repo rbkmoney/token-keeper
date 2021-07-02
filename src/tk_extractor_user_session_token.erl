@@ -19,12 +19,13 @@ get_context(Token, ExtractorOpts) ->
     UserID = tk_token_jwt:get_subject_id(Token),
     Email = tk_token_jwt:get_subject_email(Token),
     Expiration = tk_token_jwt:get_expires_at(Token),
+    UserRealm = maps:get(user_realm, ExtractorOpts, undefined),
     Acc0 = bouncer_context_helpers:empty(),
     Acc1 = bouncer_context_helpers:add_user(
         #{
             id => UserID,
             email => Email,
-            realm => #{id => maps:get(user_realm, ExtractorOpts, undefined)}
+            realm => #{id => UserRealm}
         },
         Acc0
     ),
@@ -40,7 +41,8 @@ get_context(Token, ExtractorOpts) ->
         wrap_metadata(
             genlib_map:compact(#{
                 <<"user_id">> => UserID,
-                <<"user_email">> => Email
+                <<"user_email">> => Email,
+                <<"user_realm">> => UserRealm
             }),
             ExtractorOpts
         )}.

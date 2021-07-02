@@ -11,13 +11,14 @@
 %% API Types
 
 -type methods() :: [{method(), extractor_opts()} | method()].
--type method() :: claim | detect_token | api_key_token | user_session_token.
+-type method() :: claim | detect_token | api_key_token | user_session_token | invoice_template_access_token.
 
 -type extractor_opts() ::
     tk_extractor_claim:extractor_opts()
     | tk_extractor_detect_token:extractor_opts()
     | tk_extractor_phony_api_key:extractor_opts()
-    | tk_extractor_user_session_token:extractor_opts().
+    | tk_extractor_user_session_token:extractor_opts()
+    | tk_extractor_invoice_tpl_token:extractor_opts().
 
 -type extracted_context() :: {context_fragment(), tk_authority:metadata() | undefined}.
 
@@ -49,4 +50,6 @@ get_extractor_handler(detect_token) ->
 get_extractor_handler(phony_api_key) ->
     tk_extractor_phony_api_key;
 get_extractor_handler(user_session_token) ->
-    tk_extractor_user_session_token.
+    tk_extractor_user_session_token;
+get_extractor_handler(invoice_template_access_token) ->
+    tk_extractor_invoice_tpl_token.
