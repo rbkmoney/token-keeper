@@ -1,4 +1,4 @@
--module(tk_handler).
+-module(tk_woody_handler).
 
 -include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 -include_lib("token_keeper_proto/include/tk_token_keeper_thrift.hrl").
@@ -25,21 +25,26 @@
 -spec handle_function(woody:func(), woody:args(), woody_context:ctx(), opts()) -> {ok, woody:result()}.
 handle_function(Op, Args, WoodyCtx, Opts) ->
     State = make_state(WoodyCtx, Opts),
-    do_handle_function(Op, Args, State).
+    handle_function_(Op, Args, State).
 
-do_handle_function('Create', _, _State) ->
+handle_function_('Create', {_ContextFragment, _Metadata}, _State) ->
     erlang:error(not_implemented);
-do_handle_function('CreateEphemeral', _, _State) ->
+handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
+    _ = handle_beat(Op, started, State),
+    StorageType = claim,
+    Authority = get_issuing_authority(),
+    AuthData = issue_token(Authority, StorageType, ContextFragment, Metadata),
+    _ = handle_beat(Op, succeeded, State),
+    {ok, AuthData};
+handle_function_('AddExistingToken', _, _State) ->
     erlang:error(not_implemented);
-do_handle_function('AddExistingToken', _, _State) ->
-    erlang:error(not_implemented);
-do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
+handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     _ = handle_beat(Op, started, State),
     TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
     case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
         {ok, TokenInfo} ->
             State1 = save_pulse_metadata(#{token => TokenInfo}, State),
-            Authority = get_token_authority(TokenInfo),
+            Authority = get_autority_config(get_token_authority(TokenInfo)),
             case tk_authority:get_authdata_by_token(TokenInfo, Authority) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
@@ -53,12 +58,23 @@ do_handle_function('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
             _ = handle_beat(Op, {failed, {token_verification, Reason}}, State),
             woody_error:raise(business, #token_keeper_InvalidToken{})
     end;
-do_handle_function('Get', _, _State) ->
+handle_function_('Get', _, _State) ->
     erlang:error(not_implemented);
-do_handle_function('Revoke', _, _State) ->
+handle_function_('Revoke', _, _State) ->
     erlang:error(not_implemented).
 
 %% Internal functions
+
+issue_token(Authority, StorageType, ContextFragment, Metadata) ->
+    AuthDataPrototype = tk_authority:create_authdata(ContextFragment, Metadata, Authority),
+    %% FUTURE: Consider authdata id idempotency shenanigans
+    {ok, StorageClaims} = tk_storage:store(StorageType, AuthDataPrototype),
+    %% FIXME: are we supposed to extract jti from ContextFragment?
+    JTI = unique_id(),
+    %% FIXME: are we supposed to extract expiration from ContextFragment?
+    Claims = tk_token_jwt:create_claims(StorageClaims, unlimited),
+    {ok, Token} = tk_token_jwt:issue(JTI, Claims, tk_authority:get_signer(Authority)),
+    encode_auth_data(AuthDataPrototype#{token => Token}).
 
 make_state(WoodyCtx, Opts) ->
     #state{
@@ -86,7 +102,9 @@ decode_source_context(TokenSourceContext) ->
 %%
 
 get_token_authority(TokenInfo) ->
-    AuthorityID = tk_token_jwt:get_authority(TokenInfo),
+    tk_token_jwt:get_authority(TokenInfo).
+
+get_autority_config(AuthorityID) ->
     Authorities = application:get_env(token_keeper, authorities, #{}),
     case maps:get(AuthorityID, Authorities, undefined) of
         Config when Config =/= undefined ->
@@ -94,6 +112,24 @@ get_token_authority(TokenInfo) ->
         undefined ->
             throw({misconfiguration, {no_such_authority, AuthorityID}})
     end.
+
+get_issuing_authority() ->
+    get_autority_config(maps:get(authority, get_issuing_config())).
+
+get_issuing_config() ->
+    case application:get_env(token_keeper, issuing, undefined) of
+        Config when Config =/= undefined ->
+            Config;
+        undefined ->
+            throw({misconfiguration, issuing_not_configured})
+    end.
+
+%%
+
+%% FIXME: Overlapping with capi_*?
+unique_id() ->
+    <<ID:64>> = snowflake:new(),
+    genlib_format:format_int_base(ID, 62).
 
 %%
 
@@ -103,5 +139,7 @@ handle_beat(Op, Event, State) ->
 save_pulse_metadata(Metadata, State = #state{pulse_metadata = PulseMetadata}) ->
     State#state{pulse_metadata = maps:merge(Metadata, PulseMetadata)}.
 
+encode_pulse_op('CreateEphemeral') ->
+    create_ephemeral;
 encode_pulse_op('GetByToken') ->
     get_by_token.

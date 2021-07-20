@@ -5,12 +5,15 @@
 
 %% API functions
 
+-export([get_signer/1]).
+-export([create_authdata/3]).
 -export([get_authdata_by_token/2]).
 
 %% API Types
 
 -type authority() :: #{
     id := autority_id(),
+    signer => tk_token_jwt:keyname(),
     authdata_sources := [tk_authdata_source:authdata_source()]
 }.
 
@@ -41,13 +44,28 @@
 
 %% API Functions
 
+-spec get_signer(authority()) -> tk_token_jwt:keyname().
+get_signer(Authority) ->
+    maps:get(signer, Authority).
+
+-spec create_authdata(encoded_context_fragment(), metadata(), authority()) -> authdata().
+create_authdata(ContextFragment, Metadata, Authority) ->
+    add_authority_id(
+        #{
+            status => active,
+            context => ContextFragment,
+            metadata => Metadata
+        },
+        Authority
+    ).
+
 -spec get_authdata_by_token(tk_token_jwt:t(), authority()) ->
     {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
 get_authdata_by_token(Token, Authority) ->
     AuthDataSources = get_auth_data_sources(Authority),
     case get_authdata_from_sources(AuthDataSources, Token) of
         AuthData when AuthData =/= undefined ->
-            {ok, add_authority_id(AuthData, Authority)};
+            {ok, maybe_add_authority_id(AuthData, Authority)};
         undefined ->
             {error, {authdata_not_found, AuthDataSources}}
     end.
@@ -71,6 +89,11 @@ get_authdata_from_sources([SourceOpts | Rest], Token) ->
         undefined ->
             get_authdata_from_sources(Rest, Token)
     end.
+
+maybe_add_authority_id(AuthData = #{authority := _}, _Authority) ->
+    AuthData;
+maybe_add_authority_id(AuthData, Authority) ->
+    add_authority_id(AuthData, Authority).
 
 add_authority_id(AuthData, Authority) ->
     AuthData#{authority => maps:get(id, Authority)}.

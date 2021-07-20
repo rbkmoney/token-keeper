@@ -110,7 +110,7 @@ get_handler_specs(ServiceOpts, AuditPulse) ->
     [
         {
             maps:get(path, TokenKeeperService, <<"/v1/token-keeper">>),
-            {{tk_token_keeper_thrift, 'TokenKeeper'}, {tk_handler, TokenKeeperOpts}}
+            {{tk_token_keeper_thrift, 'TokenKeeper'}, {tk_woody_handler, TokenKeeperOpts}}
         }
     ].
 

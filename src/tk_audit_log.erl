@@ -234,11 +234,14 @@ log_allowed(Level) ->
 %%
 
 get_level({get_by_token, started}, _Level) -> log_allowed(debug);
+get_level({create_ephemeral, started}, _Level) -> log_allowed(debug);
 get_level(_, Level) -> Level.
 
 get_message({get_by_token, started}) -> <<"get_by_token started">>;
 get_message({get_by_token, succeeded}) -> <<"get_by_token succeeded">>;
-get_message({get_by_token, {failed, _}}) -> <<"get_by_token failed">>.
+get_message({get_by_token, {failed, _}}) -> <<"get_by_token failed">>;
+get_message({create_ephemeral, started}) -> <<"create_ephemeral started">>;
+get_message({create_ephemeral, succeeded}) -> <<"create_ephemeral succeeded">>.
 
 get_beat_metadata({get_by_token, Event}) ->
     #{
@@ -256,6 +259,20 @@ get_beat_metadata({get_by_token, Event}) ->
                     #{
                         event => failed,
                         error => encode_error(Error)
+                    }
+            end
+    };
+get_beat_metadata({create_ephemeral, Event}) ->
+    #{
+        create_ephemeral =>
+            case Event of
+                started ->
+                    #{
+                        event => started
+                    };
+                succeeded ->
+                    #{
+                        event => succeeded
                     }
             end
     }.
@@ -278,12 +295,12 @@ extract_opt_meta(K, Metadata, EncodeFun, Acc) ->
         error -> Acc
     end.
 
-encode_token({JTI, Claims, Authority, TokenMetadata}) ->
+encode_token(TokenInfo) ->
     #{
-        jti => JTI,
-        claims => Claims,
-        authority => Authority,
-        metadata => TokenMetadata
+        jti => tk_token_jwt:get_token_id(TokenInfo),
+        claims => tk_token_jwt:get_claims(TokenInfo),
+        authority => tk_token_jwt:get_authority(TokenInfo),
+        metadata => tk_token_jwt:get_metadata(TokenInfo)
     }.
 
 encode_token_source(TokenSourceContext = #{}) ->

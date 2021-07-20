@@ -14,9 +14,17 @@
 }.
 -export_type([source_opts/0]).
 
+%%
+
+-type extracted_authdata() :: #{
+    status := tk_authority:status(),
+    context := tk_authority:encoded_context_fragment(),
+    metadata => tk_authority:metadata()
+}.
+
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts()) -> tk_authdata_source:stored_authdata() | undefined.
+-spec get_authdata(tk_token_jwt:t(), source_opts()) -> extracted_authdata() | undefined.
 get_authdata(Token, Opts) ->
     Methods = get_extractor_methods(Opts),
     case extract_context_with(Methods, Token) of
@@ -49,8 +57,6 @@ make_auth_data(ContextFragment, Metadata) ->
         metadata => Metadata
     }).
 
-encode_context_fragment({encoded_context_fragment, ContextFragment}) ->
-    ContextFragment;
 encode_context_fragment(ContextFragment) ->
     #bctx_ContextFragment{
         type = v1_thrift_binary,

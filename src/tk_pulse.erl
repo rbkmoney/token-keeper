@@ -4,7 +4,10 @@
     {get_by_token,
         started
         | succeeded
-        | {failed, _Reason}}.
+        | {failed, _Reason}}
+    | {create_ephemeral,
+        started
+        | succeeded}.
 
 -type metadata() :: #{
     token => tk_token_jwt:t(),

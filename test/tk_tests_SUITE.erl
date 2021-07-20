@@ -27,6 +27,7 @@
 -export([invoice_template_access_token_ok_test/1]).
 -export([invoice_template_access_token_no_access_test/1]).
 -export([invoice_template_access_token_invalid_access_test/1]).
+-export([basic_issuing_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -63,7 +64,8 @@ all() ->
     [
         {group, detect_token_type},
         {group, claim_only},
-        {group, invoice_template_access_token}
+        {group, invoice_template_access_token},
+        {group, issuing}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
@@ -83,6 +85,9 @@ groups() ->
             invoice_template_access_token_ok_test,
             invoice_template_access_token_no_access_test,
             invoice_template_access_token_invalid_access_test
+        ]},
+        {issuing, [parallel], [
+            basic_issuing_test
         ]}
     ].
 
@@ -115,7 +120,6 @@ init_per_group(detect_token_type = Name, C) ->
             keycloak => #{
                 id => ?TK_AUTHORITY_KEYCLOAK,
                 authdata_sources => [
-                    storage,
                     {extract, #{
                         methods => [
                             {detect_token, #{
@@ -149,13 +153,10 @@ init_per_group(claim_only = Name, C) ->
             claim_only => #{
                 id => ?TK_AUTHORITY_CAPI,
                 authdata_sources => [
-                    {extract, #{
-                        methods => [
-                            {claim, #{
-                                metadata_ns => ?TK_META_NS_APIKEYMGMT
-                            }}
-                        ]
-                    }}
+                    {storage,
+                        {claim, #{
+                            compatability => {true, ?TK_META_NS_APIKEYMGMT}
+                        }}}
                 ]
             }
         }}
@@ -175,17 +176,42 @@ init_per_group(invoice_template_access_token = Name, C) ->
             invoice_tpl_authority => #{
                 id => ?TK_AUTHORITY_CAPI,
                 authdata_sources => [
+                    {storage,
+                        {claim, #{
+                            compatability => {true, ?TK_META_NS_APIKEYMGMT}
+                        }}},
                     {extract, #{
                         methods => [
-                            {claim, #{
-                                metadata_ns => ?TK_META_NS_APIKEYMGMT
-                            }},
                             {invoice_template_access_token, #{
                                 domain => ?TK_RESOURCE_DOMAIN,
                                 metadata_ns => ?TK_META_NS_APIKEYMGMT
                             }}
                         ]
                     }}
+                ]
+            }
+        }}
+    ]) ++
+        [{groupname, Name} | C];
+init_per_group(issuing = Name, C) ->
+    start_keeper([
+        {jwt, #{
+            keyset => #{
+                test => #{
+                    source => {pem_file, get_keysource("keys/local/private.pem", C)},
+                    authority => issuing_authority
+                }
+            }
+        }},
+        {issuing, #{
+            authority => issuing_authority
+        }},
+        {authorities, #{
+            issuing_authority => #{
+                id => ?TK_AUTHORITY_CAPI,
+                signer => test,
+                authdata_sources => [
+                    {storage, claim}
                 ]
             }
         }}
@@ -382,6 +408,27 @@ invoice_template_access_token_invalid_access_test(C) ->
     #token_keeper_AuthDataNotFound{} =
         (catch call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
+-spec basic_issuing_test(config()) -> ok.
+basic_issuing_test(C) ->
+    Client = mk_client(C),
+    JTI = unique_id(),
+    BinaryContextFragment = create_bouncer_context(JTI),
+    Context = #bctx_ContextFragment{
+        type = v1_thrift_binary,
+        content = BinaryContextFragment
+    },
+    Metadata = #{<<"ns">> => #{<<"my">> => <<"metadata">>}},
+    #token_keeper_AuthData{
+        id = undefined,
+        token = Token,
+        status = active,
+        context = Context,
+        metadata = Metadata,
+        authority = ?TK_AUTHORITY_CAPI
+    } = AuthData = call_create_ephemeral(Context, Metadata, Client),
+    ok = verify_token(Token, BinaryContextFragment, Metadata, JTI),
+    AuthData = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client).
+
 %%
 
 mk_client(C) ->
@@ -391,6 +438,9 @@ mk_client(C) ->
 
 call_get_by_token(Token, TokenSourceContext, Client) ->
     call_token_keeper('GetByToken', {Token, TokenSourceContext}, Client).
+
+call_create_ephemeral(ContextFragment, Metadata, Client) ->
+    call_token_keeper('CreateEphemeral', {ContextFragment, Metadata}, Client).
 
 call_token_keeper(Operation, Args, Client) ->
     call(token_keeper, Operation, Args, Client).
@@ -455,12 +505,42 @@ assert_user({user_session_token, _JTI, SubjectID, SubjectEmail, _Exp}, User) ->
 
 %%
 
+verify_token(Token, BinaryContextFragment, Metadata, _JTI) ->
+    EncodedContextFragment = base64:encode(BinaryContextFragment),
+    case tk_token_jwt:verify(Token, #{}) of
+        {ok, TokenInfo} ->
+            #{
+                %<<"jti">> := JTI, %% FIXME this will never match
+                <<"bouncer_ctx">> := #{
+                    <<"ty">> := <<"v1_thrift_binary">>,
+                    <<"ct">> := EncodedContextFragment
+                },
+                <<"tk_metadata">> := Metadata
+            } = tk_token_jwt:get_claims(TokenInfo),
+            ok;
+        Error ->
+            Error
+    end.
+
+%%
+
 make_auth_expiration(Timestamp) when is_integer(Timestamp) ->
     genlib_rfc3339:format(Timestamp, second);
 make_auth_expiration(unlimited) ->
     undefined.
 
 %%
+
+create_bouncer_context(JTI) ->
+    Acc0 = bouncer_context_helpers:empty(),
+    Acc1 = bouncer_context_helpers:add_auth(
+        #{
+            method => <<"ClaimToken">>,
+            token => #{id => JTI}
+        },
+        Acc0
+    ),
+    encode_context_fragment_content(Acc1).
 
 issue_token(JTI, Claims0, Expiration) ->
     Claims = tk_token_jwt:create_claims(Claims0, Expiration),
@@ -470,15 +550,7 @@ issue_token_with_context(JTI, SubjectID) ->
     issue_token_with_context(JTI, SubjectID, #{}).
 
 issue_token_with_context(JTI, SubjectID, AdditionalClaims) ->
-    Acc0 = bouncer_context_helpers:empty(),
-    Acc1 = bouncer_context_helpers:add_auth(
-        #{
-            method => <<"ClaimToken">>,
-            token => #{id => JTI}
-        },
-        Acc0
-    ),
-    FragmentContent = encode_context_fragment_content(Acc1),
+    FragmentContent = create_bouncer_context(JTI),
     issue_token(
         JTI,
         AdditionalClaims#{

@@ -9,6 +9,7 @@
         genlib,
         woody,
         jose,
+        snowflake,
         token_keeper_proto,
         bouncer_client,
         how_are_you,

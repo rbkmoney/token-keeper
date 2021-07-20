@@ -11,27 +11,21 @@
 %% API Types
 
 -type methods() :: [{method(), extractor_opts()} | method()].
--type method() :: claim | detect_token | api_key_token | user_session_token | invoice_template_access_token.
+-type method() :: detect_token | api_key_token | user_session_token | invoice_template_access_token.
 
 -type extractor_opts() ::
-    tk_extractor_claim:extractor_opts()
-    | tk_extractor_detect_token:extractor_opts()
+    tk_extractor_detect_token:extractor_opts()
     | tk_extractor_phony_api_key:extractor_opts()
     | tk_extractor_user_session_token:extractor_opts()
     | tk_extractor_invoice_tpl_token:extractor_opts().
 
 -type extracted_context() :: {context_fragment(), tk_authority:metadata() | undefined}.
-
--type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
--type context_fragment() ::
-    {encoded_context_fragment, encoded_context_fragment()}
-    | bouncer_context_helpers:context_fragment().
+-type context_fragment() :: bouncer_context_helpers:context_fragment().
 
 -export_type([methods/0]).
 -export_type([method/0]).
 -export_type([extractor_opts/0]).
 -export_type([extracted_context/0]).
--export_type([encoded_context_fragment/0]).
 -export_type([context_fragment/0]).
 
 %% API functions
@@ -43,8 +37,6 @@ get_context(Method, Token, Opts) ->
 
 %%
 
-get_extractor_handler(claim) ->
-    tk_extractor_claim;
 get_extractor_handler(detect_token) ->
     tk_extractor_detect_token;
 get_extractor_handler(phony_api_key) ->
