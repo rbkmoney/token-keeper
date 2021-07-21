@@ -67,13 +67,10 @@ handle_function_('Revoke', _, _State) ->
 
 issue_token(Authority, StorageType, ContextFragment, Metadata) ->
     AuthDataPrototype = tk_authority:create_authdata(ContextFragment, Metadata, Authority),
-    %% FUTURE: Consider authdata id idempotency shenanigans
     {ok, StorageClaims} = tk_storage:store(StorageType, AuthDataPrototype),
     %% FIXME: are we supposed to extract jti from ContextFragment?
     JTI = unique_id(),
-    %% FIXME: are we supposed to extract expiration from ContextFragment?
-    Claims = tk_token_jwt:create_claims(StorageClaims, unlimited),
-    {ok, Token} = tk_token_jwt:issue(JTI, Claims, tk_authority:get_signer(Authority)),
+    {ok, Token} = tk_token_jwt:issue(JTI, StorageClaims, tk_authority:get_signer(Authority)),
     encode_auth_data(AuthDataPrototype#{token => Token}).
 
 make_state(WoodyCtx, Opts) ->

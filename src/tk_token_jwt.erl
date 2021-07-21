@@ -103,9 +103,9 @@ get_subject_id(T) ->
 get_subject_email(T) ->
     get_claim(?CLAIM_SUBJECT_EMAIL, T, undefined).
 
--spec get_expires_at(t()) -> expiration().
+-spec get_expires_at(t()) -> expiration() | undefined.
 get_expires_at(T) ->
-    case get_claim(?CLAIM_EXPIRES_AT, T) of
+    case get_claim(?CLAIM_EXPIRES_AT, T, undefined) of
         0 -> unlimited;
         V -> V
     end.
@@ -264,8 +264,7 @@ get_alg(#{}) ->
 
 get_validators() ->
     [
-        {token_id, ?CLAIM_TOKEN_ID, fun check_presence/2},
-        {expires_at, ?CLAIM_EXPIRES_AT, fun check_presence/2}
+        {token_id, ?CLAIM_TOKEN_ID, fun check_presence/2}
     ].
 
 check_presence(_, V) when is_binary(V) ->

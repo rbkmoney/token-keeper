@@ -51,7 +51,7 @@ get_context(Token, ExtractorOpts) ->
 
 make_auth_expiration(Timestamp) when is_integer(Timestamp) ->
     genlib_rfc3339:format(Timestamp, second);
-make_auth_expiration(unlimited) ->
+make_auth_expiration(Expiration) when Expiration =:= unlimited; Expiration =:= undefined ->
     undefined.
 
 wrap_metadata(Metadata, ExtractorOpts) ->
