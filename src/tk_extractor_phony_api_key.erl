@@ -1,5 +1,5 @@
 -module(tk_extractor_phony_api_key).
--behaviour(tk_context_extractor).
+-behaviour(tk_extractor).
 
 -export([get_context/2]).
 
@@ -13,7 +13,7 @@
 
 %% API functions
 
--spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_context_extractor:extracted_context().
+-spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_extractor:extracted_context().
 get_context(Token, ExtractorOpts) ->
     UserID = tk_token_jwt:get_subject_id(Token),
     Acc0 = bouncer_context_helpers:empty(),

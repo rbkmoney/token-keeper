@@ -5,7 +5,7 @@
 %% therefore a lot of them do not have a standart bouncer context claim built-in.
 %% It is advisable to get rid of this exctractor when this issue will be solved.
 
--behaviour(tk_context_extractor).
+-behaviour(tk_extractor).
 
 -export([get_context/2]).
 
@@ -20,7 +20,7 @@
 
 %% API functions
 
--spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_context_extractor:extracted_context().
+-spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_extractor:extracted_context().
 get_context(Token, ExtractorOpts) ->
     UserID = tk_token_jwt:get_subject_id(Token),
     case extract_invoice_template_rights(Token, ExtractorOpts) of

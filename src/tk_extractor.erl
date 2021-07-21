@@ -1,4 +1,4 @@
--module(tk_context_extractor).
+-module(tk_extractor).
 
 %% Behaviour
 

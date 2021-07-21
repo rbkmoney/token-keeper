@@ -15,7 +15,7 @@
 
 %% Internal types
 
--type stored_authdata() :: tk_storage:stored_authdata().
+-type stored_authdata() :: tk_storage:storable_authdata().
 
 -type storage_source() :: {storage, tk_authdata_source_storage:source_opts()}.
 -type extractor_source() :: maybe_opts(extractor, tk_authdata_source_extractor:source_opts()).

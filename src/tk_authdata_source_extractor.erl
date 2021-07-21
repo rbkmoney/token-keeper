@@ -10,7 +10,7 @@
 %%
 
 -type source_opts() :: #{
-    methods => tk_context_extractor:methods()
+    methods => tk_extractor:methods()
 }.
 -export_type([source_opts/0]).
 
@@ -43,7 +43,7 @@ extract_context_with([], _Token) ->
     undefined;
 extract_context_with([MethodOpts | Rest], Token) ->
     {Method, Opts} = get_method_opts(MethodOpts),
-    case tk_context_extractor:get_context(Method, Token, Opts) of
+    case tk_extractor:get_context(Method, Token, Opts) of
         AuthData when AuthData =/= undefined ->
             AuthData;
         undefined ->

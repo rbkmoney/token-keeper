@@ -17,11 +17,11 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts()) -> tk_storage:stored_authdata() | undefined.
+-spec get_authdata(tk_token_jwt:t(), source_opts()) -> tk_storage:storable_authdata() | undefined.
 get_authdata(Token, Opts) ->
     {Storage, StorageOpts} = get_storage_opts(Opts),
     Claims = tk_token_jwt:get_claims(Token),
-    case tk_storage:get(Storage, Claims, StorageOpts) of
+    case tk_storage:get_by_claims(Storage, Claims, StorageOpts) of
         {ok, AuthData} ->
             AuthData;
         {error, Reason} ->

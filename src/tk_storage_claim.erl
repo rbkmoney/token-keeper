@@ -4,6 +4,7 @@
 
 -behaviour(tk_storage).
 -export([get/2]).
+-export([get_by_claims/2]).
 -export([store/1]).
 -export([revoke/1]).
 
@@ -15,6 +16,7 @@
 
 %%
 
+-type authdata_id() :: tk_authority:authdata_id().
 -type claim() :: tk_token_jwt:claim().
 -type claims() :: tk_token_jwt:claims().
 
@@ -27,11 +29,14 @@
 
 %%
 
--spec get(claims(), storage_opts()) ->
-    {ok, tk_storage:stored_authdata()}
-    | {error, not_found | {claim_decode_error, {unsupported, claim()} | {malformed, binary()}}}.
+-spec get(authdata_id(), storage_opts()) -> {error, not_found}.
+get(_DataID, _Opts) ->
+    {error, not_found}.
 
-get(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
+-spec get_by_claims(claims(), storage_opts()) ->
+    {ok, tk_storage:storable_authdata()}
+    | {error, not_found | {claim_decode_error, {unsupported, claim()} | {malformed, binary()}}}.
+get_by_claims(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
     case decode_bouncer_claim(BouncerClaim) of
         {ok, ContextFragment} ->
             case get_metadata(Claims, Opts) of
@@ -43,19 +48,19 @@ get(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
         {error, Reason} ->
             {error, {claim_decode_error, Reason}}
     end;
-get(_Claims, _Opts) ->
+get_by_claims(_Claims, _Opts) ->
     {error, not_found}.
 
--spec store(tk_storage:stored_authdata()) -> {ok, claims()}.
+-spec store(tk_storage:storable_authdata()) -> {ok, claims()}.
 store(#{context := ContextFragment} = AuthData) ->
     {ok, #{
         ?CLAIM_BOUNCER_CTX => encode_bouncer_claim(ContextFragment),
         ?CLAIM_TK_METADATA => encode_metadata(AuthData)
     }}.
 
--spec revoke(claims()) -> {error, storage_immutable}.
-revoke(_Claims) ->
-    {error, storage_immutable}.
+-spec revoke(authdata_id()) -> {error, not_found}.
+revoke(_DataID) ->
+    {error, not_found}.
 
 %% Internal functions
 

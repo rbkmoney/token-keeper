@@ -17,25 +17,26 @@
     authdata_sources := [tk_authdata_source:authdata_source()]
 }.
 
+-type autority_id() :: binary().
+
 -type authdata() :: #{
-    id => id(),
+    id => authdata_id(),
     status := status(),
     context := encoded_context_fragment(),
     authority := autority_id(),
     metadata => metadata()
 }.
 
--type id() :: binary().
+-type authdata_id() :: binary().
 -type status() :: active | revoked.
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
 -type metadata() :: #{metadata_ns() => #{binary() => binary()}}.
 -type metadata_ns() :: binary().
--type autority_id() :: binary().
 
 -export_type([authority/0]).
 
 -export_type([authdata/0]).
--export_type([id/0]).
+-export_type([authdata_id/0]).
 -export_type([status/0]).
 -export_type([encoded_context_fragment/0]).
 -export_type([metadata/0]).

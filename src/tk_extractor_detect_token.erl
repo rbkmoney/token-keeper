@@ -1,5 +1,5 @@
 -module(tk_extractor_detect_token).
--behaviour(tk_context_extractor).
+-behaviour(tk_extractor).
 
 %% Behaviour
 
@@ -22,11 +22,11 @@
 
 %% Behaviour
 
--spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_context_extractor:extracted_context() | undefined.
+-spec get_context(tk_token_jwt:t(), extractor_opts()) -> tk_extractor:extracted_context() | undefined.
 get_context(Token, Opts = #{user_session_token_origins := UserTokenOrigins}) ->
     TokenSourceContext = tk_token_jwt:get_source_context(Token),
     TokenType = determine_token_type(TokenSourceContext, UserTokenOrigins),
-    tk_context_extractor:get_context(TokenType, Token, get_opts(TokenType, Opts)).
+    tk_extractor:get_context(TokenType, Token, get_opts(TokenType, Opts)).
 
 %% Internal functions
 
