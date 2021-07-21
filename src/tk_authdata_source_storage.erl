@@ -7,7 +7,10 @@
 
 %%
 
+-type stored_authdata() :: tk_storage:storable_authdata().
 -type source_opts() :: claim_storage().
+
+-export_type([stored_authdata/0]).
 -export_type([source_opts/0]).
 
 %%
@@ -17,7 +20,7 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts()) -> tk_storage:storable_authdata() | undefined.
+-spec get_authdata(tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
 get_authdata(Token, Opts) ->
     {Storage, StorageOpts} = get_storage_opts(Opts),
     Claims = tk_token_jwt:get_claims(Token),

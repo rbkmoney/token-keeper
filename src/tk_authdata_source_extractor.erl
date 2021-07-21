@@ -9,18 +9,18 @@
 
 %%
 
--type source_opts() :: #{
-    methods => tk_extractor:methods()
-}.
--export_type([source_opts/0]).
-
-%%
-
 -type extracted_authdata() :: #{
     status := tk_authority:status(),
     context := tk_authority:encoded_context_fragment(),
     metadata => tk_authority:metadata()
 }.
+
+-type source_opts() :: #{
+    methods => tk_extractor:methods()
+}.
+
+-export_type([extracted_authdata/0]).
+-export_type([source_opts/0]).
 
 %% Behaviour functions
 
