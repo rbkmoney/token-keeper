@@ -33,17 +33,17 @@
 
 %%
 
--spec get(storage(), authdata_id(), storage_opts()) -> {ok, tk_storage:storable_authdata()} | {error, _Reason}.
+-spec get(storage(), authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(Storage, DataID, Opts) ->
     Handler = get_storage_handler(Storage),
     Handler:get(DataID, Opts).
 
--spec get_by_claims(storage(), claims(), storage_opts()) -> {ok, tk_storage:storable_authdata()} | {error, _Reason}.
+-spec get_by_claims(storage(), claims(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
 get_by_claims(Storage, Claims, Opts) ->
     Handler = get_storage_handler(Storage),
     Handler:get_by_claims(Claims, Opts).
 
--spec store(storage(), tk_storage:storable_authdata()) -> {ok, claims()} | {error, _Reason}.
+-spec store(storage(), storable_authdata()) -> {ok, claims()} | {error, _Reason}.
 store(Storage, AuthData) ->
     Handler = get_storage_handler(Storage),
     Handler:store(AuthData).

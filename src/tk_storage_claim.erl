@@ -16,6 +16,7 @@
 
 %%
 
+-type storable_authdata() :: tk_storage:storable_authdata().
 -type authdata_id() :: tk_authority:authdata_id().
 -type claim() :: tk_token_jwt:claim().
 -type claims() :: tk_token_jwt:claims().
@@ -34,7 +35,7 @@ get(_DataID, _Opts) ->
     {error, not_found}.
 
 -spec get_by_claims(claims(), storage_opts()) ->
-    {ok, tk_storage:storable_authdata()}
+    {ok, storable_authdata()}
     | {error, not_found | {claim_decode_error, {unsupported, claim()} | {malformed, binary()}}}.
 get_by_claims(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
     case decode_bouncer_claim(BouncerClaim) of
@@ -51,7 +52,7 @@ get_by_claims(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
 get_by_claims(_Claims, _Opts) ->
     {error, not_found}.
 
--spec store(tk_storage:storable_authdata()) -> {ok, claims()}.
+-spec store(storable_authdata()) -> {ok, claims()}.
 store(#{context := ContextFragment} = AuthData) ->
     {ok, #{
         ?CLAIM_BOUNCER_CTX => encode_bouncer_claim(ContextFragment),
