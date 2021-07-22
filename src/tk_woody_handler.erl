@@ -28,6 +28,7 @@ handle_function(Op, Args, WoodyCtx, Opts) ->
     handle_function_(Op, Args, State).
 
 handle_function_('Create', {_ID, _ContextFragment, _Metadata}, _State) ->
+    %% TODO: Change protocol to include authdata id
     erlang:error(not_implemented);
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
