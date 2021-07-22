@@ -5,7 +5,7 @@
 
 %% API
 
--export([issue/3]).
+-export([issue/2]).
 -export([verify/2]).
 
 -export([get_token_id/1]).
@@ -91,9 +91,9 @@
 %% API functions
 %%
 
--spec get_token_id(t()) -> token_id().
+-spec get_token_id(t()) -> token_id() | undefined.
 get_token_id(T) ->
-    get_claim(?CLAIM_TOKEN_ID, T).
+    get_claim(?CLAIM_TOKEN_ID, T, undefined).
 
 -spec get_subject_id(t()) -> subject_id() | undefined.
 get_subject_id(T) ->
@@ -145,14 +145,14 @@ set_subject_email(SubjectEmail, Claims) ->
 
 %%
 
--spec issue(token_id(), claims(), keyname()) ->
+-spec issue(claims(), keyname()) ->
     {ok, token()}
     | {error, nonexistent_key}
     | {error, {invalid_signee, Reason :: atom()}}.
-issue(JTI, Claims, Signer) ->
+issue(Claims, Signer) ->
     case try_get_key_for_sign(Signer) of
         {ok, Key} ->
-            FinalClaims = construct_final_claims(Claims, JTI),
+            FinalClaims = construct_final_claims(Claims),
             sign(Key, FinalClaims);
         {error, Error} ->
             {error, Error}
@@ -168,10 +168,8 @@ try_get_key_for_sign(Keyname) ->
             {error, nonexistent_key}
     end.
 
-construct_final_claims(Claims, JTI) ->
-    Token0 = #{?CLAIM_TOKEN_ID => JTI},
-    EncodedClaims = maps:map(fun encode_claim/2, Claims),
-    maps:merge(EncodedClaims, Token0).
+construct_final_claims(Claims) ->
+    maps:map(fun encode_claim/2, Claims).
 
 encode_claim(?CLAIM_EXPIRES_AT, Expiration) ->
     mk_expires_at(Expiration);
@@ -237,20 +235,10 @@ make_metadata(SourceContext) ->
 verify_with_key(JWK, ExpandedToken, Authority, Metadata) ->
     case jose_jwt:verify(JWK, ExpandedToken) of
         {true, #jose_jwt{fields = Claims}, _JWS} ->
-            _ = validate_claims(Claims),
             {ok, {Claims, Authority, Metadata}};
         {false, _JWT, _JWS} ->
             {error, invalid_signature}
     end.
-
-validate_claims(Claims) ->
-    validate_claims(Claims, get_validators()).
-
-validate_claims(Claims, [{Name, Claim, Validator} | Rest]) ->
-    _ = Validator(Name, maps:get(Claim, Claims, undefined)),
-    validate_claims(Claims, Rest);
-validate_claims(Claims, []) ->
-    Claims.
 
 get_kid(#{<<"kid">> := KID}) when is_binary(KID) ->
     KID;
@@ -261,18 +249,6 @@ get_alg(#{<<"alg">> := Alg}) when is_binary(Alg) ->
     Alg;
 get_alg(#{}) ->
     throw({invalid_token, {missing, alg}}).
-
-get_validators() ->
-    [
-        {token_id, ?CLAIM_TOKEN_ID, fun check_presence/2}
-    ].
-
-check_presence(_, V) when is_binary(V) ->
-    V;
-check_presence(_, V) when is_integer(V) ->
-    V;
-check_presence(C, undefined) ->
-    throw({invalid_token, {missing, C}}).
 
 %%
 %% Supervisor callbacks

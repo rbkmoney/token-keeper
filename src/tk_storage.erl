@@ -33,23 +33,23 @@
 
 %%
 
--spec get(storage(), authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
-get(Storage, DataID, Opts) ->
+-spec get(authdata_id(), storage(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
+get(DataID, Storage, Opts) ->
     Handler = get_storage_handler(Storage),
     Handler:get(DataID, Opts).
 
--spec get_by_claims(storage(), claims(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
-get_by_claims(Storage, Claims, Opts) ->
+-spec get_by_claims(claims(), storage(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
+get_by_claims(Claims, Storage, Opts) ->
     Handler = get_storage_handler(Storage),
     Handler:get_by_claims(Claims, Opts).
 
--spec store(storage(), storable_authdata()) -> {ok, claims()} | {error, _Reason}.
-store(Storage, AuthData) ->
+-spec store(storable_authdata(), storage()) -> {ok, claims()} | {error, _Reason}.
+store(AuthData, Storage) ->
     Handler = get_storage_handler(Storage),
     Handler:store(AuthData).
 
--spec revoke(storage(), authdata_id()) -> ok | {error, _Reason}.
-revoke(Storage, DataID) ->
+-spec revoke(authdata_id(), storage()) -> ok | {error, _Reason}.
+revoke(DataID, Storage) ->
     Handler = get_storage_handler(Storage),
     Handler:revoke(DataID).
 

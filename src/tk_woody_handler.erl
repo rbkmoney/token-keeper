@@ -27,13 +27,13 @@ handle_function(Op, Args, WoodyCtx, Opts) ->
     State = make_state(WoodyCtx, Opts),
     handle_function_(Op, Args, State).
 
-handle_function_('Create', {_ContextFragment, _Metadata}, _State) ->
+handle_function_('Create', {_ID, _ContextFragment, _Metadata}, _State) ->
     erlang:error(not_implemented);
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
     StorageType = claim,
     Authority = get_issuing_authority(),
-    AuthData = issue_token(Authority, StorageType, ContextFragment, Metadata),
+    AuthData = issue_token(ContextFragment, Metadata, Authority, StorageType),
     _ = handle_beat(Op, succeeded, State),
     {ok, AuthData};
 handle_function_('AddExistingToken', _, _State) ->
@@ -65,12 +65,13 @@ handle_function_('Revoke', _, _State) ->
 
 %% Internal functions
 
-issue_token(Authority, StorageType, ContextFragment, Metadata) ->
-    AuthDataPrototype = tk_authority:create_authdata(ContextFragment, Metadata, Authority),
-    {ok, StorageClaims} = tk_storage:store(StorageType, AuthDataPrototype),
-    %% FIXME: are we supposed to extract jti from ContextFragment?
-    JTI = unique_id(),
-    {ok, Token} = tk_token_jwt:issue(JTI, StorageClaims, tk_authority:get_signer(Authority)),
+issue_token(ContextFragment, Metadata, Authority, StorageType) ->
+    issue_token(undefined, ContextFragment, Metadata, Authority, StorageType).
+
+issue_token(ID, ContextFragment, Metadata, Authority, StorageType) ->
+    AuthDataPrototype = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
+    {ok, StorageClaims} = tk_storage:store(AuthDataPrototype, StorageType),
+    {ok, Token} = tk_token_jwt:issue(StorageClaims, tk_authority:get_signer(Authority)),
     encode_auth_data(AuthDataPrototype#{token => Token}).
 
 make_state(WoodyCtx, Opts) ->
@@ -120,13 +121,6 @@ get_issuing_config() ->
         undefined ->
             throw({misconfiguration, issuing_not_configured})
     end.
-
-%%
-
-%% FIXME: Overlapping with capi_*?
-unique_id() ->
-    <<ID:64>> = snowflake:new(),
-    genlib_format:format_int_base(ID, 62).
 
 %%
 

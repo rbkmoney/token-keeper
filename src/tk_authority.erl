@@ -6,7 +6,7 @@
 %% API functions
 
 -export([get_signer/1]).
--export([create_authdata/3]).
+-export([create_authdata/4]).
 -export([get_authdata_by_token/2]).
 
 %% API Types
@@ -49,16 +49,14 @@
 get_signer(Authority) ->
     maps:get(signer, Authority).
 
--spec create_authdata(encoded_context_fragment(), metadata(), authority()) -> authdata().
-create_authdata(ContextFragment, Metadata, Authority) ->
-    add_authority_id(
-        #{
-            status => active,
-            context => ContextFragment,
-            metadata => Metadata
-        },
-        Authority
-    ).
+-spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority()) -> authdata().
+create_authdata(ID, ContextFragment, Metadata, Authority) ->
+    AuthData = #{
+        status => active,
+        context => ContextFragment,
+        metadata => Metadata
+    },
+    add_authority_id(add_id(AuthData, ID), Authority).
 
 -spec get_authdata_by_token(tk_token_jwt:t(), authority()) ->
     {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
@@ -95,6 +93,11 @@ maybe_add_authority_id(AuthData = #{authority := _}, _Authority) ->
     AuthData;
 maybe_add_authority_id(AuthData, Authority) ->
     add_authority_id(AuthData, Authority).
+
+add_id(AuthData, undefined) ->
+    AuthData;
+add_id(AuthData, ID) ->
+    AuthData#{id => ID}.
 
 add_authority_id(AuthData, Authority) ->
     AuthData#{authority => maps:get(id, Authority)}.

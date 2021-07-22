@@ -543,8 +543,8 @@ create_bouncer_context(JTI) ->
     encode_context_fragment_content(Acc1).
 
 issue_token(JTI, Claims0, Expiration) ->
-    Claims = tk_token_jwt:create_claims(Claims0, Expiration),
-    tk_token_jwt:issue(JTI, Claims, test).
+    Claims1 = tk_token_jwt:create_claims(Claims0, Expiration),
+    tk_token_jwt:issue(Claims1#{<<"jti">> => JTI}, test).
 
 issue_token_with_context(JTI, SubjectID) ->
     issue_token_with_context(JTI, SubjectID, #{}).

@@ -24,7 +24,7 @@
 get_authdata(Token, Opts) ->
     {Storage, StorageOpts} = get_storage_opts(Opts),
     Claims = tk_token_jwt:get_claims(Token),
-    case tk_storage:get_by_claims(Storage, Claims, StorageOpts) of
+    case tk_storage:get_by_claims(Claims, Storage, StorageOpts) of
         {ok, AuthData} ->
             AuthData;
         {error, Reason} ->
