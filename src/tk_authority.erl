@@ -5,6 +5,7 @@
 
 %% API functions
 
+-export([get_id/1]).
 -export([get_signer/1]).
 -export([create_authdata/4]).
 -export([get_authdata_by_token/2]).
@@ -44,6 +45,10 @@
 -export_type([autority_id/0]).
 
 %% API Functions
+
+-spec get_id(authority()) -> autority_id().
+get_id(Authority) ->
+    maps:get(id, Authority).
 
 -spec get_signer(authority()) -> tk_token_jwt:keyname().
 get_signer(Authority) ->

@@ -33,8 +33,8 @@ handle_function_('Create', {_ID, _ContextFragment, _Metadata}, _State) ->
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
     StorageType = claim,
-    Authority = get_issuing_authority(),
-    AuthData = issue_token(ContextFragment, Metadata, Authority, StorageType),
+    AuthorityID = get_issuing_authority(),
+    AuthData = issue_token(ContextFragment, Metadata, AuthorityID, StorageType),
     _ = handle_beat(Op, succeeded, State),
     {ok, AuthData};
 handle_function_('AddExistingToken', _, _State) ->
@@ -66,13 +66,14 @@ handle_function_('Revoke', _, _State) ->
 
 %% Internal functions
 
-issue_token(ContextFragment, Metadata, Authority, StorageType) ->
-    issue_token(undefined, ContextFragment, Metadata, Authority, StorageType).
+issue_token(ContextFragment, Metadata, AuthorityID, StorageType) ->
+    issue_token(undefined, ContextFragment, Metadata, AuthorityID, StorageType).
 
-issue_token(ID, ContextFragment, Metadata, Authority, StorageType) ->
+issue_token(ID, ContextFragment, Metadata, AuthorityID, StorageType) ->
+    Authority = get_autority_config(AuthorityID),
     AuthDataPrototype = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
     {ok, StorageClaims} = tk_storage:store(AuthDataPrototype, StorageType),
-    {ok, Token} = tk_token_jwt:issue(StorageClaims, tk_authority:get_signer(Authority)),
+    {ok, Token} = tk_token_jwt:issue(StorageClaims, get_signer(AuthorityID, Authority)),
     encode_auth_data(AuthDataPrototype#{token => Token}).
 
 make_state(WoodyCtx, Opts) ->
@@ -113,14 +114,27 @@ get_autority_config(AuthorityID) ->
     end.
 
 get_issuing_authority() ->
-    get_autority_config(maps:get(authority, get_issuing_config())).
+    maps:get(authority, get_issuing_config()).
 
 get_issuing_config() ->
     case application:get_env(token_keeper, issuing, undefined) of
         Config when Config =/= undefined ->
             Config;
         undefined ->
-            throw({misconfiguration, issuing_not_configured})
+            throw({misconfiguration, {issuing, not_configured}})
+    end.
+
+%%
+
+get_signer(AuthorityID, Authority) ->
+    SignerKID = tk_authority:get_signer(Authority),
+    case tk_token_jwt:get_key_authority(SignerKID) of
+        {ok, AuthorityID} ->
+            SignerKID;
+        {ok, OtherAuthorityID} ->
+            throw({misconfiguration, {issuing, {key_ownership_error, {AuthorityID, OtherAuthorityID}}}});
+        _ ->
+            throw({misconfiguration, {issuing, {no_key, SignerKID}}})
     end.
 
 %%

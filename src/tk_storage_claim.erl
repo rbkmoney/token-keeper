@@ -5,8 +5,8 @@
 -behaviour(tk_storage).
 -export([get/2]).
 -export([get_by_claims/2]).
--export([store/1]).
--export([revoke/1]).
+-export([store/2]).
+-export([revoke/2]).
 
 -type storage_opts() :: #{
     compatability => {true, MetadataNS :: binary()} | false
@@ -52,16 +52,16 @@ get_by_claims(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
 get_by_claims(_Claims, _Opts) ->
     {error, not_found}.
 
--spec store(storable_authdata()) -> {ok, claims()}.
-store(#{context := ContextFragment} = AuthData) ->
+-spec store(storable_authdata(), storage_opts()) -> {ok, claims()}.
+store(#{context := ContextFragment} = AuthData, _Opts) ->
     {ok, #{
         ?CLAIM_BOUNCER_CTX => encode_bouncer_claim(ContextFragment),
         ?CLAIM_TK_METADATA => encode_metadata(AuthData)
     }}.
 
--spec revoke(authdata_id()) -> {error, not_found}.
-revoke(_DataID) ->
-    {error, not_found}.
+-spec revoke(authdata_id(), storage_opts()) -> {error, storage_immutable}.
+revoke(_DataID, _Opts) ->
+    {error, storage_immutable}.
 
 %% Internal functions
 

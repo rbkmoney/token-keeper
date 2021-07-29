@@ -11,15 +11,18 @@
 %% API Types
 
 -type authdata_source() :: storage_source() | extractor_source().
--type sourced_authdata() :: stored_authdata() | extracted_authdata().
+-type sourced_authdata() :: #{
+    id => tk_authority:authdata_id(),
+    status := tk_authority:status(),
+    context := tk_authority:encoded_context_fragment(),
+    authority => tk_authority:autority_id(),
+    metadata => tk_authority:metadata()
+}.
 
 -export_type([authdata_source/0]).
 -export_type([sourced_authdata/0]).
 
 %% Internal types
-
--type stored_authdata() :: tk_authdata_source_storage:stored_authdata().
--type extracted_authdata() :: tk_authdata_source_extractor:extracted_authdata().
 
 -type storage_source() :: {storage, tk_authdata_source_storage:source_opts()}.
 -type extractor_source() :: maybe_opts(extractor, tk_authdata_source_extractor:source_opts()).

@@ -22,6 +22,8 @@
 -export([create_claims/2]).
 -export([set_subject_email/2]).
 
+-export([get_key_authority/1]).
+
 %% Supervisor callbacks
 
 -export([init/1]).
@@ -249,6 +251,17 @@ get_alg(#{<<"alg">> := Alg}) when is_binary(Alg) ->
     Alg;
 get_alg(#{}) ->
     throw({invalid_token, {missing, alg}}).
+
+%%
+
+-spec get_key_authority(keyname()) -> {ok, authority()} | {error, {nonexistent_key, keyname()}}.
+get_key_authority(KeyName) ->
+    case get_key_by_name(KeyName) of
+        #{authority := Authority} ->
+            {ok, Authority};
+        undefined ->
+            {error, {nonexistent_key, KeyName}}
+    end.
 
 %%
 %% Supervisor callbacks
