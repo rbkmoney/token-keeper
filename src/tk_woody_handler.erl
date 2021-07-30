@@ -121,7 +121,7 @@ get_issuing_config() ->
         Config when Config =/= undefined ->
             Config;
         undefined ->
-            throw({misconfiguration, {issuing, not_configured}})
+            error({misconfiguration, {issuing, not_configured}})
     end.
 
 %%
@@ -132,9 +132,9 @@ get_signer(AuthorityID, Authority) ->
         {ok, AuthorityID} ->
             SignerKID;
         {ok, OtherAuthorityID} ->
-            throw({misconfiguration, {issuing, {key_ownership_error, {AuthorityID, OtherAuthorityID}}}});
+            error({misconfiguration, {issuing, {key_ownership_error, {AuthorityID, OtherAuthorityID}}}});
         _ ->
-            throw({misconfiguration, {issuing, {no_key, SignerKID}}})
+            error({misconfiguration, {issuing, {no_key, SignerKID}}})
     end.
 
 %%
