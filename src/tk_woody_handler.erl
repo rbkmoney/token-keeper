@@ -32,20 +32,22 @@ handle_function_('Create', {_ID, _ContextFragment, _Metadata}, _State) ->
     erlang:error(not_implemented);
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
-    StorageType = claim,
-    AuthorityID = get_issuing_authority(),
-    AuthData = issue_token(ContextFragment, Metadata, AuthorityID, StorageType),
+    Authority = get_autority_config(get_issuing_authority()),
+    AuthData = issue_auth_data(ContextFragment, Metadata, Authority),
+    {ok, StorageClaims} = tk_storage:store(AuthData, claim),
+    {ok, Token} = tk_token_jwt:issue(unique_id(), StorageClaims, get_signer(Authority)),
+    EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
     _ = handle_beat(Op, succeeded, State),
-    {ok, AuthData};
+    {ok, EncodedAuthData};
 handle_function_('AddExistingToken', _, _State) ->
     erlang:error(not_implemented);
 handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     _ = handle_beat(Op, started, State),
     TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
-    case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
+    case verify_token(Token, TokenSourceContextDecoded) of
         {ok, TokenInfo} ->
             State1 = save_pulse_metadata(#{token => TokenInfo}, State),
-            Authority = get_autority_config(get_token_authority(TokenInfo)),
+            {_, Authority} = get_autority_config(get_token_authority(TokenInfo)),
             case tk_authority:get_authdata_by_token(TokenInfo, Authority) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
@@ -55,9 +57,12 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
                     _ = handle_beat(Op, {failed, {not_found, Reason}}, State1),
                     woody_error:raise(business, #token_keeper_AuthDataNotFound{})
             end;
-        {error, Reason} ->
+        {error, {verification, Reason}} ->
             _ = handle_beat(Op, {failed, {token_verification, Reason}}, State),
-            woody_error:raise(business, #token_keeper_InvalidToken{})
+            woody_error:raise(business, #token_keeper_InvalidToken{});
+        {error, {blacklist_check, Reason}} ->
+            _ = handle_beat(Op, {failed, {blacklist_check, Reason}}, State),
+            woody_error:raise(business, #token_keeper_AuthDataRevoked{})
     end;
 handle_function_('Get', _, _State) ->
     erlang:error(not_implemented);
@@ -66,15 +71,35 @@ handle_function_('Revoke', _, _State) ->
 
 %% Internal functions
 
-issue_token(ContextFragment, Metadata, AuthorityID, StorageType) ->
-    issue_token(undefined, ContextFragment, Metadata, AuthorityID, StorageType).
+verify_token(Token, TokenSourceContextDecoded) ->
+    case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
+        {ok, TokenInfo} ->
+            case check_blacklist(TokenInfo) of
+                ok ->
+                    {ok, TokenInfo};
+                {error, Reason} ->
+                    {error, {blacklist_check, Reason}}
+            end;
+        {error, Reason} ->
+            {error, {verification, Reason}}
+    end.
 
-issue_token(ID, ContextFragment, Metadata, AuthorityID, StorageType) ->
-    Authority = get_autority_config(AuthorityID),
-    AuthDataPrototype = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
-    {ok, StorageClaims} = tk_storage:store(AuthDataPrototype, StorageType),
-    {ok, Token} = tk_token_jwt:issue(StorageClaims, get_signer(AuthorityID, Authority)),
-    encode_auth_data(AuthDataPrototype#{token => Token}).
+check_blacklist(TokenInfo) ->
+    tk_token_blacklist:check(get_token_id(TokenInfo), get_token_authority(TokenInfo)).
+
+%%
+
+issue_auth_data(ContextFragment, Metadata, Authority) ->
+    issue_auth_data(undefined, ContextFragment, Metadata, Authority).
+
+issue_auth_data(ID, ContextFragment, Metadata, {_, AuthorityConf}) ->
+    tk_authority:create_authdata(ID, ContextFragment, Metadata, AuthorityConf).
+
+unique_id() ->
+    <<ID:64>> = snowflake:new(),
+    genlib_format:format_int_base(ID, 62).
+
+%%
 
 make_state(WoodyCtx, Opts) ->
     #state{
@@ -101,6 +126,9 @@ decode_source_context(TokenSourceContext) ->
 
 %%
 
+get_token_id(TokenInfo) ->
+    tk_token_jwt:get_token_id(TokenInfo).
+
 get_token_authority(TokenInfo) ->
     tk_token_jwt:get_authority(TokenInfo).
 
@@ -108,7 +136,7 @@ get_autority_config(AuthorityID) ->
     Authorities = application:get_env(token_keeper, authorities, #{}),
     case maps:get(AuthorityID, Authorities, undefined) of
         Config when Config =/= undefined ->
-            Config;
+            {AuthorityID, Config};
         undefined ->
             throw({misconfiguration, {no_such_authority, AuthorityID}})
     end.
@@ -126,8 +154,8 @@ get_issuing_config() ->
 
 %%
 
-get_signer(AuthorityID, Authority) ->
-    SignerKID = tk_authority:get_signer(Authority),
+get_signer({AuthorityID, AuthorityConf}) ->
+    SignerKID = tk_authority:get_signer(AuthorityConf),
     case tk_token_jwt:get_key_authority(SignerKID) of
         {ok, AuthorityID} ->
             SignerKID;
