@@ -29,6 +29,7 @@
 -export([invoice_template_access_token_invalid_access_test/1]).
 -export([basic_issuing_test/1]).
 -export([jti_and_authority_blacklist_test/1]).
+-export([empty_blacklist_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -91,8 +92,9 @@ groups() ->
         {issuing, [parallel], [
             basic_issuing_test
         ]},
-        {blacklist, [parallel], [
-            jti_and_authority_blacklist_test
+        {blacklist, [], [
+            jti_and_authority_blacklist_test,
+            empty_blacklist_test
         ]}
     ].
 
@@ -222,7 +224,18 @@ init_per_group(issuing = Name, C) ->
         }}
     ]) ++
         [{groupname, Name} | C];
-init_per_group(blacklist = Name, C) ->
+init_per_group(Name, C) ->
+    [{groupname, Name} | C].
+
+-spec end_per_group(group_name(), config()) -> _.
+end_per_group(blacklist, _C) ->
+    ok;
+end_per_group(_GroupName, C) ->
+    ok = stop_keeper(C),
+    ok.
+
+-spec init_per_testcase(atom(), config()) -> config().
+init_per_testcase(jti_and_authority_blacklist_test = Name, C) ->
     start_keeper([
         {jwt, #{
             keyset => #{
@@ -251,23 +264,39 @@ init_per_group(blacklist = Name, C) ->
                 authdata_sources => []
             }
         }}
-    ]) ++
-        [{groupname, Name} | C];
-init_per_group(Name, C) ->
-    [{groupname, Name} | C].
-
--spec end_per_group(group_name(), config()) -> _.
-end_per_group(_GroupName, C) ->
-    ok = stop_keeper(C),
-    ok.
-
--spec init_per_testcase(atom(), config()) -> config().
-
+    ]) ++ [{testcase, Name} | C];
+init_per_testcase(empty_blacklist_test = Name, C) ->
+    start_keeper([
+        {jwt, #{
+            keyset => #{
+                primary => #{
+                    source => {pem_file, get_filename("keys/local/private.pem", C)},
+                    authority => authority
+                }
+            }
+        }},
+        {blacklist, #{
+            path => get_filename("empty_blacklist.yaml", C)
+        }},
+        {authorities, #{
+            authority => #{
+                id => ?TK_AUTHORITY_CAPI,
+                signer => primary,
+                authdata_sources => []
+            }
+        }}
+    ]) ++ [{testcase, Name} | C];
 init_per_testcase(Name, C) ->
     [{testcase, Name} | C].
 
 -spec end_per_testcase(atom(), config()) -> config().
 
+end_per_testcase(Name, C) when
+    Name =:= jti_and_authority_blacklist_test;
+    Name =:= empty_blacklist_test
+->
+    ok = stop_keeper(C),
+    ok;
 end_per_testcase(_Name, _C) ->
     ok.
 
@@ -473,6 +502,14 @@ jti_and_authority_blacklist_test(C) ->
     #token_keeper_AuthDataRevoked{} =
         (catch call_get_by_token(Token0, ?TOKEN_SOURCE_CONTEXT(), Client)),
     {ok, Token1} = issue_token(JTI, #{}, unlimited, secondary),
+    #token_keeper_AuthDataNotFound{} =
+        (catch call_get_by_token(Token1, ?TOKEN_SOURCE_CONTEXT(), Client)).
+
+-spec empty_blacklist_test(config()) -> ok.
+empty_blacklist_test(C) ->
+    Client = mk_client(C),
+    JTI = <<"MYCOOLKEY">>,
+    {ok, Token1} = issue_token(JTI, #{}, unlimited, primary),
     #token_keeper_AuthDataNotFound{} =
         (catch call_get_by_token(Token1, ?TOKEN_SOURCE_CONTEXT(), Client)).
 

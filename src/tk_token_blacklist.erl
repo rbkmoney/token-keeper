@@ -4,7 +4,7 @@
 
 %% API
 
--export([check/2]).
+-export([is_blacklisted/2]).
 
 %% Supervisor callbacks
 
@@ -15,7 +15,7 @@
 
 -type options() :: #{
     %% Path to blacklist file
-    path := binary()
+    path => binary()
 }.
 
 -export_type([options/0]).
@@ -35,15 +35,9 @@ child_spec(Options) ->
         type => supervisor
     }.
 
--spec check(binary(), atom()) -> ok | {error, token_blacklisted}.
-check(Token, AuthorityID) ->
-    Entries = get_entires(),
-    case match_entry(AuthorityID, Token, Entries) of
-        false ->
-            ok;
-        true ->
-            {error, token_blacklisted}
-    end.
+-spec is_blacklisted(binary(), atom()) -> boolean().
+is_blacklisted(Token, AuthorityID) ->
+    match_entry(AuthorityID, Token, get_entires()).
 
 %%
 
@@ -59,37 +53,27 @@ match_entry(AuthorityID, Token, Entries) ->
 
 -spec init(options()) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init(Options) ->
-    _ = load_blacklist_conf(maps:get(path, Options, get_default_path())),
+    _ = load_blacklist_conf(maps:get(path, Options, undefined)),
     {ok, {#{}, []}}.
 
 -define(ENTRIES_KEY, "entries").
 
+load_blacklist_conf(undefined) ->
+    _ = logger:warning("No token blacklist file specified! Token blacklisting functionality will not be enabled."),
+    put_entires(#{});
 load_blacklist_conf(Filename) ->
     [Mappings] = yamerl_constr:file(Filename),
     Entries = process_entries(proplists:get_value(?ENTRIES_KEY, Mappings)),
     put_entires(Entries).
 
-get_default_path() ->
-    filename:join([get_priv_dir(), "blacklisted_keys.yaml"]).
-
 process_entries(Entries) ->
     lists:foldl(
         fun({K, V}, Acc) ->
-            %% Would love to use list_to_existing_atom(K) here, but
-            %% authority config does not create atoms for some reason
             Acc#{list_to_atom(K) => [list_to_binary(V0) || V0 <- V]}
         end,
         #{},
         Entries
     ).
-
-get_priv_dir() ->
-    case code:priv_dir(?APP) of
-        {error, bad_name} ->
-            exit({blacklist_load_failed, not_an_app});
-        Filename ->
-            Filename
-    end.
 
 %%
 

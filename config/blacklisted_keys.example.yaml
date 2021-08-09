@@ -14,4 +14,9 @@ description: >
   Broadly speaking, what constitutes an _identifier_ depends on which _tokens_
   are we talking about. Though for the foreseeable future, we consider only
   JWTs where JWT's identifier is the value of the 'jti' claim.
-entries: []
+entries:
+  keycloak:
+    - "token_a"
+    - "token_b"
+  apikeymgmt:
+    - "token_c"

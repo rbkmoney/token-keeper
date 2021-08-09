@@ -155,7 +155,6 @@ issue(JTI, Claims, Signer) ->
     case try_get_key_for_sign(Signer) of
         {ok, Key} ->
             FinalClaims = construct_final_claims(JTI, Claims),
-            _ = validate_claims(FinalClaims),
             sign(Key, FinalClaims);
         {error, Error} ->
             {error, Error}

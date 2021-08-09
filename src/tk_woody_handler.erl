@@ -75,17 +75,17 @@ verify_token(Token, TokenSourceContextDecoded) ->
     case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
         {ok, TokenInfo} ->
             case check_blacklist(TokenInfo) of
-                ok ->
+                false ->
                     {ok, TokenInfo};
-                {error, Reason} ->
-                    {error, {blacklist_check, Reason}}
+                true->
+                    {error, {blacklist_check, key_in_blacklist}}
             end;
         {error, Reason} ->
             {error, {verification, Reason}}
     end.
 
 check_blacklist(TokenInfo) ->
-    tk_token_blacklist:check(get_token_id(TokenInfo), get_token_authority(TokenInfo)).
+    tk_token_blacklist:is_blacklisted(get_token_id(TokenInfo), get_token_authority(TokenInfo)).
 
 %%
 
