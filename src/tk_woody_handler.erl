@@ -77,7 +77,7 @@ verify_token(Token, TokenSourceContextDecoded) ->
             case check_blacklist(TokenInfo) of
                 false ->
                     {ok, TokenInfo};
-                true->
+                true ->
                     {error, {blacklist_check, key_in_blacklist}}
             end;
         {error, Reason} ->
