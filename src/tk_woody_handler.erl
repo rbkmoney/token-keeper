@@ -60,8 +60,8 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
         {error, {verification, Reason}} ->
             _ = handle_beat(Op, {failed, {token_verification, Reason}}, State),
             woody_error:raise(business, #token_keeper_InvalidToken{});
-        {error, {blacklist_check, Reason}} ->
-            _ = handle_beat(Op, {failed, {blacklist_check, Reason}}, State),
+        {error, blacklisted} ->
+            _ = handle_beat(Op, {failed, blacklisted}, State),
             woody_error:raise(business, #token_keeper_AuthDataRevoked{})
     end;
 handle_function_('Get', _, _State) ->
@@ -78,7 +78,7 @@ verify_token(Token, TokenSourceContextDecoded) ->
                 false ->
                     {ok, TokenInfo};
                 true ->
-                    {error, {blacklist_check, key_in_blacklist}}
+                    {error, blacklisted}
             end;
         {error, Reason} ->
             {error, {verification, Reason}}
