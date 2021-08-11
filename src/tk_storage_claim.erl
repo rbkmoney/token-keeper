@@ -129,5 +129,7 @@ wrap_metadata(Metadata, MetadataNS) ->
 get_passthrough_claim_names() ->
     [
         %% token consumer
-        <<"cons">>
+        <<"cons">>,
+        %% Данные для привязки платежных токенов создаваемых в createPaymentResource
+        <<"token_link">>
     ].
