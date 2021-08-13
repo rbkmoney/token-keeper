@@ -31,8 +31,7 @@
 -type authdata_id() :: binary().
 -type status() :: active | revoked.
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
--type metadata() :: #{metadata_ns() => #{binary() => binary()}}.
--type metadata_ns() :: binary().
+-type metadata() :: #{binary() => binary()}.
 
 -export_type([authority/0]).
 
@@ -41,7 +40,6 @@
 -export_type([status/0]).
 -export_type([encoded_context_fragment/0]).
 -export_type([metadata/0]).
--export_type([metadata_ns/0]).
 -export_type([autority_id/0]).
 
 %% API Functions

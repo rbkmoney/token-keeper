@@ -9,10 +9,18 @@
 -export([revoke/2]).
 
 -type storage_opts() :: #{
-    compatability => {true, MetadataNS :: binary()} | false
+    compatibility => {true, compatibility_opts()} | false
+}.
+
+-type compatibility_opts() :: #{
+    metadata_mappings := #{
+        party_id := binary(),
+        token_consumer := binary()
+    }
 }.
 
 -export_type([storage_opts/0]).
+-export_type([compatibility_opts/0]).
 
 %%
 
@@ -101,8 +109,8 @@ encode_metadata(#{}) ->
 
 get_metadata(#{?CLAIM_TK_METADATA := Metadata}, _Opts) ->
     {ok, Metadata};
-get_metadata(Claims, #{compatability := {true, MetadataNS}}) ->
-    {ok, wrap_metadata(create_metadata(Claims), MetadataNS)};
+get_metadata(Claims, #{compatability := {true, CompatOpts}}) ->
+    {ok, create_metadata(Claims, CompatOpts)};
 get_metadata(_Claims, _Opts) ->
     {error, no_metadata_claim}.
 
@@ -113,21 +121,11 @@ create_authdata(ContextFragment, Metadata) ->
         metadata => Metadata
     }).
 
-create_metadata(Claims) ->
-    Metadata = maps:with(get_passthrough_claim_names(), Claims),
-    %% TODO: This is a temporary hack.
-    %% When some external services will stop requiring woody user identity to be present it must be removed too
-    genlib_map:compact(Metadata#{
-        <<"party_id">> => maps:get(<<"sub">>, Claims, undefined)
-    }).
-
-wrap_metadata(Metadata, _MetadataNS) when map_size(Metadata) =:= 0 ->
-    undefined;
-wrap_metadata(Metadata, MetadataNS) ->
-    #{MetadataNS => Metadata}.
-
-get_passthrough_claim_names() ->
-    [
-        %% token consumer
-        <<"cons">>
-    ].
+create_metadata(Claims, CompatOpts) ->
+    Metadata = #{
+        %% TODO: This is a temporary hack.
+        %% When some external services will stop requiring woody user identity to be present it must be removed too
+        party_id => maps:get(<<"sub">>, Claims, undefined),
+        consumer => maps:get(<<"cons">>, Claims, undefined)
+    },
+    tk_utils:remap(genlib_map:compact(Metadata), maps:get(metadata_mappings, CompatOpts)).

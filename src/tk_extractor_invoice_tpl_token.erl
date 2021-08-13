@@ -13,7 +13,9 @@
 
 -type extractor_opts() :: #{
     domain := binary(),
-    metadata_ns := binary()
+    metadata_mappings := #{
+        party_id := binary()
+    }
 }.
 
 -export_type([extractor_opts/0]).
@@ -26,23 +28,22 @@ get_context(Token, ExtractorOpts) ->
     case extract_invoice_template_rights(Token, ExtractorOpts) of
         {ok, InvoiceTemplateID} ->
             BCtx = create_bouncer_ctx(tk_token_jwt:get_token_id(Token), UserID, InvoiceTemplateID),
-            {BCtx, wrap_metadata(get_metadata(Token), ExtractorOpts)};
+            {BCtx,
+                make_metadata(
+                    #{
+                        %% @TEMP: This is a temporary hack.
+                        %% When some external services will stop requiring woody user
+                        %% identity to be present it must be removed too
+                        party_id => tk_token_jwt:get_subject_id(Token)
+                    },
+                    ExtractorOpts
+                )};
         {error, Reason} ->
             _ = logger:warning("Failed to extract invoice template rights: ~p", [Reason]),
             undefined
     end.
 
 %%
-
-get_metadata(Token) ->
-    %% @TEMP: This is a temporary hack.
-    %% When some external services will stop requiring woody user identity to be present it must be removed too
-    case tk_token_jwt:get_subject_id(Token) of
-        UserID when UserID =/= undefined ->
-            #{<<"party_id">> => UserID};
-        undefined ->
-            undefined
-    end.
 
 extract_invoice_template_rights(TokenContext, ExtractorOpts) ->
     Domain = maps:get(domain, ExtractorOpts),
@@ -106,9 +107,9 @@ create_bouncer_ctx(TokenID, UserID, InvoiceTemplateID) ->
         bouncer_context_helpers:empty()
     ).
 
-wrap_metadata(Metadata, ExtractorOpts) ->
-    MetadataNS = maps:get(metadata_ns, ExtractorOpts),
-    #{MetadataNS => Metadata}.
+make_metadata(Metadata, ExtractorOpts) ->
+    Mappings = maps:get(metadata_mappings, ExtractorOpts),
+    tk_utils:remap(genlib_map:compact(Metadata), Mappings).
 
 get_resource_hierarchy() ->
     #{

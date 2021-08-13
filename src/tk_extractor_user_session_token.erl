@@ -6,7 +6,11 @@
 %%
 
 -type extractor_opts() :: #{
-    metadata_ns := binary(),
+    metadata_mappings := #{
+        user_id := binary(),
+        user_email := binary(),
+        user_realm := binary()
+    },
     user_realm := binary()
 }.
 
@@ -38,12 +42,12 @@ get_context(Token, ExtractorOpts) ->
         Acc1
     ),
     {Acc2,
-        wrap_metadata(
-            genlib_map:compact(#{
-                <<"user_id">> => UserID,
-                <<"user_email">> => Email,
-                <<"user_realm">> => UserRealm
-            }),
+        make_metadata(
+            #{
+                user_id => UserID,
+                user_email => Email,
+                user_realm => UserRealm
+            },
             ExtractorOpts
         )}.
 
@@ -54,6 +58,6 @@ make_auth_expiration(Timestamp) when is_integer(Timestamp) ->
 make_auth_expiration(Expiration) when Expiration =:= unlimited; Expiration =:= undefined ->
     undefined.
 
-wrap_metadata(Metadata, ExtractorOpts) ->
-    MetadataNS = maps:get(metadata_ns, ExtractorOpts),
-    #{MetadataNS => Metadata}.
+make_metadata(Metadata, ExtractorOpts) ->
+    Mappings = maps:get(metadata_mappings, ExtractorOpts),
+    tk_utils:remap(genlib_map:compact(Metadata), Mappings).

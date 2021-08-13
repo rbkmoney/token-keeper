@@ -35,19 +35,16 @@
 
 -define(CONFIG(Key, C), (element(2, lists:keyfind(Key, 1, C)))).
 
--define(TK_META_NS_KEYCLOAK, <<"test.rbkmoney.token-keeper">>).
--define(TK_META_NS_APIKEYMGMT, <<"test.rbkmoney.apikeymgmt">>).
+-define(META_PARTY_ID, <<"test.rbkmoney.party.id">>).
+-define(META_USER_ID, <<"test.rbkmoney.user.id">>).
+-define(META_USER_EMAIL, <<"test.rbkmoney.user.email">>).
+-define(META_USER_REALM, <<"test.rbkmoney.user.realm">>).
+-define(META_CAPI_CONSUMER, <<"test.rbkmoney.capi.consumer">>).
 
 -define(TK_AUTHORITY_KEYCLOAK, <<"test.rbkmoney.keycloak">>).
 -define(TK_AUTHORITY_CAPI, <<"test.rbkmoney.capi">>).
 
 -define(TK_RESOURCE_DOMAIN, <<"test-domain">>).
-
--define(METADATA(Authority, Metadata), #{Authority := Metadata}).
--define(PARTY_METADATA(Authority, SubjectID), ?METADATA(Authority, #{<<"party_id">> := SubjectID})).
--define(USER_METADATA(Authority, SubjectID, Email),
-    ?METADATA(Authority, #{<<"user_id">> := SubjectID, <<"user_email">> := Email})
-).
 
 -define(TOKEN_SOURCE_CONTEXT(), ?TOKEN_SOURCE_CONTEXT(<<"http://spanish.inquisition">>)).
 -define(TOKEN_SOURCE_CONTEXT(SourceURL), #token_keeper_TokenSourceContext{request_origin = SourceURL}).
@@ -124,11 +121,17 @@ init_per_group(detect_token_type = Name, C) ->
                         methods => [
                             {detect_token, #{
                                 phony_api_key_opts => #{
-                                    metadata_ns => ?TK_META_NS_APIKEYMGMT
+                                    metadata_mappings => #{
+                                        party_id => ?META_PARTY_ID
+                                    }
                                 },
                                 user_session_token_opts => #{
                                     user_realm => <<"external">>,
-                                    metadata_ns => ?TK_META_NS_KEYCLOAK
+                                    metadata_mappings => #{
+                                        user_id => ?META_USER_ID,
+                                        user_email => ?META_USER_EMAIL,
+                                        user_realm => ?META_USER_REALM
+                                    }
                                 },
                                 user_session_token_origins => [?USER_TOKEN_SOURCE]
                             }}
@@ -155,7 +158,13 @@ init_per_group(claim_only = Name, C) ->
                 authdata_sources => [
                     {storage,
                         {claim, #{
-                            compatability => {true, ?TK_META_NS_APIKEYMGMT}
+                            compatability =>
+                                {true, #{
+                                    metadata_mappings => #{
+                                        party_id => ?META_PARTY_ID,
+                                        consumer => ?META_CAPI_CONSUMER
+                                    }
+                                }}
                         }}}
                 ]
             }
@@ -178,13 +187,21 @@ init_per_group(invoice_template_access_token = Name, C) ->
                 authdata_sources => [
                     {storage,
                         {claim, #{
-                            compatability => {true, ?TK_META_NS_APIKEYMGMT}
+                            compatability =>
+                                {true, #{
+                                    metadata_mappings => #{
+                                        party_id => ?META_PARTY_ID,
+                                        token_consumer => ?META_CAPI_CONSUMER
+                                    }
+                                }}
                         }}},
                     {extract, #{
                         methods => [
                             {invoice_template_access_token, #{
                                 domain => ?TK_RESOURCE_DOMAIN,
-                                metadata_ns => ?TK_META_NS_APIKEYMGMT
+                                metadata_mappings => #{
+                                    party_id => ?META_PARTY_ID
+                                }
                             }}
                         ]
                     }}
@@ -275,7 +292,7 @@ detect_api_key_test(C) ->
         token = Token,
         status = active,
         context = Context,
-        metadata = ?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID),
+        metadata = #{?META_PARTY_ID := SubjectID},
         authority = ?TK_AUTHORITY_KEYCLOAK
     } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
     _ = assert_context({api_key_token, JTI, SubjectID}, Context).
@@ -292,7 +309,11 @@ detect_user_session_token_test(C) ->
         token = Token,
         status = active,
         context = Context,
-        metadata = ?USER_METADATA(?TK_META_NS_KEYCLOAK, SubjectID, SubjectEmail),
+        metadata = #{
+            ?META_USER_ID := SubjectID,
+            ?META_USER_EMAIL := SubjectEmail,
+            ?META_USER_REALM := <<"external">>
+        },
         authority = ?TK_AUTHORITY_KEYCLOAK
     } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(?USER_TOKEN_SOURCE), Client),
     _ = assert_context({user_session_token, JTI, SubjectID, SubjectEmail, unlimited}, Context).
@@ -324,7 +345,7 @@ bouncer_context_from_claims_test(C) ->
         token = Token,
         status = active,
         context = Context,
-        metadata = ?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID),
+        metadata = #{?META_PARTY_ID := SubjectID},
         authority = ?TK_AUTHORITY_CAPI
     } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
     _ = assert_context({claim_token, JTI}, Context).
@@ -340,7 +361,7 @@ cons_claim_passthrough_test(C) ->
         token = Token,
         status = active,
         context = Context,
-        metadata = ?METADATA(?TK_META_NS_APIKEYMGMT, #{<<"party_id">> := SubjectID, <<"cons">> := <<"client">>}),
+        metadata = #{?META_PARTY_ID := SubjectID, ?META_CAPI_CONSUMER := <<"client">>},
         authority = ?TK_AUTHORITY_CAPI
     } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
     _ = assert_context({claim_token, JTI}, Context).
@@ -371,7 +392,7 @@ invoice_template_access_token_ok_test(C) ->
         token = Token,
         status = active,
         context = Context,
-        metadata = ?PARTY_METADATA(?TK_META_NS_APIKEYMGMT, SubjectID),
+        metadata = #{?META_PARTY_ID := SubjectID},
         authority = ?TK_AUTHORITY_CAPI
     } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client),
     _ = assert_context({invoice_template_access_token, JTI, SubjectID, InvoiceTemplateID}, Context).
@@ -417,7 +438,7 @@ basic_issuing_test(C) ->
         type = v1_thrift_binary,
         content = BinaryContextFragment
     },
-    Metadata = #{<<"ns">> => #{<<"my">> => <<"metadata">>}},
+    Metadata = #{<<"my">> => <<"metadata">>},
     #token_keeper_AuthData{
         id = undefined,
         token = Token,
