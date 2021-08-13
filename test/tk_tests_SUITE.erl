@@ -158,7 +158,7 @@ init_per_group(claim_only = Name, C) ->
                 authdata_sources => [
                     {storage,
                         {claim, #{
-                            compatability =>
+                            compatibility =>
                                 {true, #{
                                     metadata_mappings => #{
                                         party_id => ?META_PARTY_ID,
@@ -187,7 +187,7 @@ init_per_group(invoice_template_access_token = Name, C) ->
                 authdata_sources => [
                     {storage,
                         {claim, #{
-                            compatability =>
+                            compatibility =>
                                 {true, #{
                                     metadata_mappings => #{
                                         party_id => ?META_PARTY_ID,

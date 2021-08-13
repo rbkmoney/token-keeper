@@ -109,7 +109,7 @@ encode_metadata(#{}) ->
 
 get_metadata(#{?CLAIM_TK_METADATA := Metadata}, _Opts) ->
     {ok, Metadata};
-get_metadata(Claims, #{compatability := {true, CompatOpts}}) ->
+get_metadata(Claims, #{compatibility := {true, CompatOpts}}) ->
     {ok, create_metadata(Claims, CompatOpts)};
 get_metadata(_Claims, _Opts) ->
     {error, no_metadata_claim}.
