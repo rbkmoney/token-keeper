@@ -1,14 +1,11 @@
--module(tk_storage_claim).
+-module(tk_token_claim_utils).
 
 -include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 
--behaviour(tk_storage).
--export([get/2]).
--export([get_by_claims/2]).
--export([store/2]).
--export([revoke/2]).
+-export([encode_authdata/2]).
+-export([decode_authdata/2]).
 
--type storage_opts() :: #{
+-type decode_opts() :: #{
     compatibility => {true, compatibility_opts()} | false
 }.
 
@@ -19,13 +16,12 @@
     }
 }.
 
--export_type([storage_opts/0]).
+-export_type([decode_opts/0]).
 -export_type([compatibility_opts/0]).
 
 %%
 
 -type storable_authdata() :: tk_storage:storable_authdata().
--type authdata_id() :: tk_authority:authdata_id().
 -type claim() :: tk_token_jwt:claim().
 -type claims() :: tk_token_jwt:claims().
 
@@ -38,14 +34,10 @@
 
 %%
 
--spec get(authdata_id(), storage_opts()) -> {error, not_found}.
-get(_DataID, _Opts) ->
-    {error, not_found}.
-
--spec get_by_claims(claims(), storage_opts()) ->
+-spec decode_authdata(claims(), decode_opts()) ->
     {ok, storable_authdata()}
     | {error, not_found | {claim_decode_error, {unsupported, claim()} | {malformed, binary()}}}.
-get_by_claims(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
+decode_authdata(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
     case decode_bouncer_claim(BouncerClaim) of
         {ok, ContextFragment} ->
             case get_metadata(Claims, Opts) of
@@ -57,21 +49,18 @@ get_by_claims(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
         {error, Reason} ->
             {error, {claim_decode_error, Reason}}
     end;
-get_by_claims(_Claims, _Opts) ->
+decode_authdata(_Claims, _Opts) ->
     {error, not_found}.
 
--spec store(storable_authdata(), storage_opts()) -> {ok, claims()}.
-store(#{context := ContextFragment} = AuthData, _Opts) ->
+-spec encode_authdata(storable_authdata(), decode_opts()) -> claims().
+encode_authdata(#{context := ContextFragment} = AuthData, _Opts) ->
     {ok, #{
         ?CLAIM_BOUNCER_CTX => encode_bouncer_claim(ContextFragment),
         ?CLAIM_TK_METADATA => encode_metadata(AuthData)
     }}.
 
--spec revoke(authdata_id(), storage_opts()) -> {error, storage_immutable}.
-revoke(_DataID, _Opts) ->
-    {error, storage_immutable}.
+%%
 
-%% Internal functions
 
 decode_bouncer_claim(#{
     ?CLAIM_CTX_TYPE := ?CLAIM_CTX_TYPE_V1_THRIFT_BINARY,

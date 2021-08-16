@@ -50,5 +50,7 @@ get_source_opts(Source) when is_atom(Source) ->
 
 get_source_handler(storage) ->
     tk_authdata_source_storage;
+get_source_handler(claim) ->
+    tk_authdata_source_claim;
 get_source_handler(extract) ->
     tk_authdata_source_extractor.

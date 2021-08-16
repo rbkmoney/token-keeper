@@ -1,4 +1,4 @@
--module(tk_authdata_source_storage).
+-module(tk_authdata_source_claim).
 -behaviour(tk_authdata_source).
 
 %% Behaviour
@@ -8,7 +8,7 @@
 %%
 
 -type stored_authdata() :: tk_storage:storable_authdata().
--type source_opts() :: #{}.
+-type source_opts() :: tk_token_claim_utils:decode_opts().
 
 -export_type([stored_authdata/0]).
 -export_type([source_opts/0]).
@@ -16,12 +16,12 @@
 %% Behaviour functions
 
 -spec get_authdata(tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
-get_authdata(Token, StorageOpts) ->
+get_authdata(Token, Opts) ->
     Claims = tk_token_jwt:get_claims(Token),
-    case tk_storage:get_by_claims(Claims, StorageOpts) of
+    case tk_token_claim_utils:decode_authdata(Claims, Opts) of
         {ok, AuthData} ->
             AuthData;
         {error, Reason} ->
-            _ = logger:warning("Failed storage get: ~p", [Reason]),
+            _ = logger:warning("Failed claim get: ~p", [Reason]),
             undefined
     end.
