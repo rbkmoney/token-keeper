@@ -10,7 +10,7 @@
 
 %% API Types
 
--type authdata_source() :: storage_source() | extractor_source().
+-type authdata_source() :: storage_source() | claim_source() | extractor_source().
 -type sourced_authdata() :: #{
     id => tk_authority:authdata_id(),
     status := tk_authority:status(),
@@ -25,12 +25,14 @@
 %% Internal types
 
 -type storage_source() :: {storage, tk_authdata_source_storage:source_opts()}.
+-type claim_source() :: {claim, tk_authdata_source_claim:source_opts()}.
 -type extractor_source() :: maybe_opts(extractor, tk_authdata_source_extractor:source_opts()).
 
 -type maybe_opts(Source, Opts) :: Source | {Source, Opts}.
 
 -type source_opts() ::
     tk_authdata_source_extractor:source_opts()
+    | tk_authdata_source_claim:source_opts()
     | tk_authdata_source_storage:source_opts().
 
 %% API functions

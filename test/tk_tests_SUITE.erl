@@ -163,16 +163,15 @@ init_per_group(claim_only = Name, C) ->
             claim_only => #{
                 id => ?TK_AUTHORITY_CAPI,
                 authdata_sources => [
-                    {storage,
-                        {claim, #{
-                            compatibility =>
-                                {true, #{
-                                    metadata_mappings => #{
-                                        party_id => ?META_PARTY_ID,
-                                        consumer => ?META_CAPI_CONSUMER
-                                    }
-                                }}
-                        }}}
+                    {claim, #{
+                        compatibility =>
+                            {true, #{
+                                metadata_mappings => #{
+                                    party_id => ?META_PARTY_ID,
+                                    consumer => ?META_CAPI_CONSUMER
+                                }
+                            }}
+                    }}
                 ]
             }
         }}
@@ -192,16 +191,15 @@ init_per_group(invoice_template_access_token = Name, C) ->
             invoice_tpl_authority => #{
                 id => ?TK_AUTHORITY_CAPI,
                 authdata_sources => [
-                    {storage,
-                        {claim, #{
-                            compatibility =>
-                                {true, #{
-                                    metadata_mappings => #{
-                                        party_id => ?META_PARTY_ID,
-                                        token_consumer => ?META_CAPI_CONSUMER
-                                    }
-                                }}
-                        }}},
+                    {claim, #{
+                        compatibility =>
+                            {true, #{
+                                metadata_mappings => #{
+                                    party_id => ?META_PARTY_ID,
+                                    token_consumer => ?META_CAPI_CONSUMER
+                                }
+                            }}
+                    }},
                     {extract, #{
                         methods => [
                             {invoice_template_access_token, #{
@@ -235,7 +233,7 @@ init_per_group(issuing = Name, C) ->
                 id => ?TK_AUTHORITY_CAPI,
                 signer => test,
                 authdata_sources => [
-                    {storage, claim}
+                    claim
                 ]
             }
         }}

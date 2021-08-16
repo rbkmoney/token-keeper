@@ -2,8 +2,8 @@
 
 -include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 
--export([encode_authdata/2]).
 -export([decode_authdata/2]).
+-export([encode_authdata/1]).
 
 -type decode_opts() :: #{
     compatibility => {true, compatibility_opts()} | false
@@ -52,15 +52,14 @@ decode_authdata(#{?CLAIM_BOUNCER_CTX := BouncerClaim} = Claims, Opts) ->
 decode_authdata(_Claims, _Opts) ->
     {error, not_found}.
 
--spec encode_authdata(storable_authdata(), decode_opts()) -> claims().
-encode_authdata(#{context := ContextFragment} = AuthData, _Opts) ->
-    {ok, #{
+-spec encode_authdata(storable_authdata()) -> claims().
+encode_authdata(#{context := ContextFragment} = AuthData) ->
+    #{
         ?CLAIM_BOUNCER_CTX => encode_bouncer_claim(ContextFragment),
         ?CLAIM_TK_METADATA => encode_metadata(AuthData)
-    }}.
+    }.
 
 %%
-
 
 decode_bouncer_claim(#{
     ?CLAIM_CTX_TYPE := ?CLAIM_CTX_TYPE_V1_THRIFT_BINARY,

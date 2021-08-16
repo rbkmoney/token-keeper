@@ -34,8 +34,8 @@ handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
     Authority = get_autority_config(get_issuing_authority()),
     AuthData = issue_auth_data(ContextFragment, Metadata, Authority),
-    {ok, StorageClaims} = tk_storage:store(AuthData, claim),
-    {ok, Token} = tk_token_jwt:issue(unique_id(), StorageClaims, get_signer(Authority)),
+    Claims = tk_token_claim_utils:encode_authdata(AuthData),
+    {ok, Token} = tk_token_jwt:issue(unique_id(), Claims, get_signer(Authority)),
     EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
     _ = handle_beat(Op, succeeded, State),
     {ok, EncodedAuthData};
