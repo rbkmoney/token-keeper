@@ -69,10 +69,12 @@ init([]) ->
     ),
     TokensOpts = genlib_app:env(?MODULE, jwt, #{}),
     TokensChildSpec = tk_token_jwt:child_spec(TokensOpts),
+    TokenBlacklistOpts = genlib_app:env(?MODULE, blacklist, #{}),
+    TokenBlacklistSpec = tk_token_blacklist:child_spec(TokenBlacklistOpts),
     {ok,
         {
             #{strategy => one_for_all, intensity => 6, period => 30},
-            [HandlerChildSpec, TokensChildSpec | AuditChildSpecs]
+            [HandlerChildSpec, TokensChildSpec, TokenBlacklistSpec | AuditChildSpecs]
         }}.
 
 -spec get_ip_address() -> inet:ip_address().

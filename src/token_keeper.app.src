@@ -13,7 +13,8 @@
         token_keeper_proto,
         bouncer_client,
         how_are_you,
-        erl_health
+        erl_health,
+        yamerl
     ]},
     {env, []},
     {modules, []},

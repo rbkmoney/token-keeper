@@ -79,13 +79,13 @@ bad_token_test(Config) ->
 bad_signee_test(_) ->
     Claims = tk_token_jwt:create_claims(#{}, unlimited),
     {error, nonexistent_key} =
-        tk_token_jwt:issue(Claims, random).
+        tk_token_jwt:issue(unique_id(), Claims, random).
 
 %%
 
 issue_token(JTI, Claims0, Expiration) ->
     Claims1 = tk_token_jwt:create_claims(Claims0, Expiration),
-    tk_token_jwt:issue(Claims1#{<<"jti">> => JTI}, test).
+    tk_token_jwt:issue(JTI, Claims1, test).
 
 issue_dummy_token(Config) ->
     Claims = #{
