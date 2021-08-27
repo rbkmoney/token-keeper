@@ -27,9 +27,29 @@ handle_function(Op, Args, WoodyCtx, Opts) ->
     State = make_state(WoodyCtx, Opts),
     handle_function_(Op, Args, State).
 
-handle_function_('Create', {_ID, _ContextFragment, _Metadata}, _State) ->
+handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     %% TODO: Change protocol to include authdata id
-    erlang:error(not_implemented);
+    %% Create - создает новую AuthData, используя переданные в качестве
+    %% аргументов данные и сохраняет их в хранилище, после чего выписывает
+    %% новый JWT-токен, в котором содержится AuthDataID (на данный момент
+    %% предполагается, что AuthDataID == jwt-клейму “JTI”). По умолчанию
+    %% status токена - active; authority - id выписывающей authority.
+    _ = handle_beat(Op, started, State),
+    AuthorityConf = get_autority_config(get_issuing_authority()),
+    AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, AuthorityConf),
+
+    {ok, Token} =
+        case tk_storage:store(AuthData, #{}) of
+            {ok, Claims} ->
+                tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf));
+            {error, Reason} ->
+                _ = handle_beat(Op, {failed, Reason}, State),
+                throw({misconfiguration, Reason})
+        end,
+
+    EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
+    _ = handle_beat(Op, succeeded, State),
+    {ok, EncodedAuthData};
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
     Authority = get_autority_config(get_issuing_authority()),
@@ -64,10 +84,37 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
             _ = handle_beat(Op, {failed, blacklisted}, State),
             woody_error:raise(business, #token_keeper_AuthDataRevoked{})
     end;
-handle_function_('Get', _, _State) ->
-    erlang:error(not_implemented);
-handle_function_('Revoke', _, _State) ->
-    erlang:error(not_implemented).
+handle_function_('Get' = Op, {ID}, State) ->
+    _ = handle_beat(Op, started, State),
+
+    {ID, AuthorityConf} = get_autority_config(ID),
+
+    case tk_authority:get_authdata_by_id(ID, AuthorityConf) of
+        {ok, AuthData} ->
+            Claims = tk_token_claim_utils:encode_authdata(AuthData),
+            {ok, Token} = tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf)),
+            EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
+            _ = handle_beat(Op, succeeded, State),
+            {ok, EncodedAuthData};
+        {error, Reason} ->
+            _ = handle_beat(Op, {failed, {not_found, Reason}}, State),
+            woody_error:raise(business, #token_keeper_AuthDataNotFound{})
+    end;
+handle_function_('Revoke' = Op, {ID}, State) ->
+    _ = handle_beat(Op, started, State),
+
+    {ID, AuthorityConf} = get_autority_config(ID),
+
+    case tk_authority:get_authdata_by_id(ID, AuthorityConf) of
+        {ok, AuthData} ->
+            AuthDataRevoked = tk_authority:set_status(AuthData, revoke),
+            tk_authority:store(AuthDataRevoked, AuthorityConf),
+            _ = handle_beat(Op, succeeded, State),
+            ok;
+        {error, Reason} ->
+            _ = handle_beat(Op, {failed, {not_found, Reason}}, State),
+            woody_error:raise(business, #token_keeper_AuthDataNotFound{})
+    end.
 
 %% Internal functions
 
@@ -176,4 +223,10 @@ save_pulse_metadata(Metadata, State = #state{pulse_metadata = PulseMetadata}) ->
 encode_pulse_op('CreateEphemeral') ->
     create_ephemeral;
 encode_pulse_op('GetByToken') ->
-    get_by_token.
+    get_by_token;
+encode_pulse_op('Create') ->
+    create;
+encode_pulse_op('Get') ->
+    get;
+encode_pulse_op('Revoke') ->
+    revoke.

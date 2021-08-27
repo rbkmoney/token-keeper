@@ -7,8 +7,11 @@
 
 -export([get_id/1]).
 -export([get_signer/1]).
+-export([set_status/1]).
 -export([create_authdata/4]).
 -export([get_authdata_by_token/2]).
+-export([get_authdata_by_id/2]).
+-export([store/1]).
 
 %% API Types
 
@@ -52,6 +55,10 @@ get_id(Authority) ->
 get_signer(Authority) ->
     maps:get(signer, Authority).
 
+-spec set_status(authdata(), status()) -> authdata().
+set_status(AuthData, Status) ->
+    AuthData#{status => Status}.
+
 -spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority()) -> authdata().
 create_authdata(ID, ContextFragment, Metadata, Authority) ->
     AuthData = #{
@@ -71,6 +78,14 @@ get_authdata_by_token(Token, Authority) ->
         undefined ->
             {error, {authdata_not_found, AuthDataSources}}
     end.
+
+-spec get_authdata_by_id(authdata_id(), authority()) -> authdata().
+get_authdata_by_id(_ID, _Authority) ->
+    erlang:error(not_implemented).
+
+-spec store(authdata()) -> {ok, claims()} | {error, _Reason}.
+store(AuthData) ->
+    erlang:error(not_implemented).
 
 %%
 
