@@ -83,9 +83,8 @@ get_authdata_by_id(ID, Authority) ->
     get_authdata({id, ID}, Authority).
 
 -spec store(authdata(), authority()) -> {ok, tk_token_jwt:claims()} | {error, _Reason}.
-store(_AuthData, _Authority) ->
-    %% tk_storage:store(AuthData, ).
-    erlang:error(not_implemented).
+store(AuthData, Authority) ->
+    store_authdata_to_sources(get_auth_data_sources(Authority), AuthData).
 
 %%-------------------------------------
 %% private functions
@@ -115,6 +114,16 @@ get_authdata_from_sources([SourceOpts | Rest], Selector) ->
             get_authdata_from_sources(Rest, Selector);
         AuthData ->
             AuthData
+    end.
+
+store_authdata_to_sources([], _AuthData) ->
+    {error, no_suitable_source};
+store_authdata_to_sources([SourceOpts | Rest], AuthData) ->
+    case tk_authdata_source:store_authdata(SourceOpts, AuthData) of
+        undefined ->
+            store_authdata_to_sources(Rest, AuthData);
+        {ok, _} = Res ->
+            Res
     end.
 
 maybe_add_authority_id(AuthData = #{authority := _}, _Authority) ->

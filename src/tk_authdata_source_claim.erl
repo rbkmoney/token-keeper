@@ -4,6 +4,7 @@
 %% Behaviour
 
 -export([get_authdata/2]).
+-export([store_authdata/2]).
 
 %%
 
@@ -26,4 +27,8 @@ get_authdata({token, V}, Opts) ->
             undefined
     end;
 get_authdata(_, _Opts) ->
+    undefined.
+
+-spec store_authdata(stored_authdata(), source_opts()) -> {ok, tk_token_jwt:claims()} | undefined.
+store_authdata(_AuthData, _Opts) ->
     undefined.

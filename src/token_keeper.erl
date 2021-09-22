@@ -130,7 +130,6 @@ get_audit_specs() ->
 %%
 
 -spec enable_health_logging(erl_health:check()) -> erl_health:check().
-
 enable_health_logging(Check) ->
     EvHandler = {erl_health_event_handler, []},
     maps:map(
