@@ -35,13 +35,12 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     %% предполагается, что AuthDataID == jwt-клейму “JTI”). По умолчанию
     %% status токена - active; authority - id выписывающей authority.
     _ = handle_beat(Op, started, State),
-    AuthorityConf = get_autority_config(get_issuing_authority()),
-    AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, AuthorityConf),
-
+    Authority = get_issuing_authority(),
+    AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
     {ok, Token} =
-        case tk_storage:store(AuthData, #{}) of
+        case tk_authority:store(AuthData, Authority) of
             {ok, Claims} ->
-                tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf));
+                tk_token_jwt:issue(ID, Claims, get_signer(get_autority_config(Authority)));
             {error, Reason} ->
                 _ = handle_beat(Op, {failed, Reason}, State),
                 throw({misconfiguration, Reason})
@@ -52,10 +51,10 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     {ok, EncodedAuthData};
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
-    Authority = get_autority_config(get_issuing_authority()),
-    AuthData = issue_auth_data(ContextFragment, Metadata, Authority),
+    AuthorityConf = get_autority_config(get_issuing_authority()),
+    AuthData = issue_auth_data(ContextFragment, Metadata, AuthorityConf),
     Claims = tk_token_claim_utils:encode_authdata(AuthData),
-    {ok, Token} = tk_token_jwt:issue(unique_id(), Claims, get_signer(Authority)),
+    {ok, Token} = tk_token_jwt:issue(unique_id(), Claims, get_signer(AuthorityConf)),
     EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
     _ = handle_beat(Op, succeeded, State),
     {ok, EncodedAuthData};
@@ -87,9 +86,9 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
 handle_function_('Get' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {ID, AuthorityConf} = get_autority_config(ID),
+    {ID, Authority} = AuthorityConf = get_autority_config(ID),
 
-    case tk_authority:get_authdata_by_id(ID, AuthorityConf) of
+    case tk_authority:get_authdata_by_id(ID, Authority) of
         {ok, AuthData} ->
             Claims = tk_token_claim_utils:encode_authdata(AuthData),
             {ok, Token} = tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf)),
@@ -103,12 +102,12 @@ handle_function_('Get' = Op, {ID}, State) ->
 handle_function_('Revoke' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {ID, AuthorityConf} = get_autority_config(ID),
+    {ID, Authority} = get_autority_config(ID),
 
-    case tk_authority:get_authdata_by_id(ID, AuthorityConf) of
+    case tk_authority:get_authdata_by_id(ID, Authority) of
         {ok, AuthData} ->
-            AuthDataRevoked = tk_authority:set_status(AuthData, revoke),
-            tk_authority:store(AuthDataRevoked, AuthorityConf),
+            AuthDataRevoked = tk_authority:set_status(AuthData, revoked),
+            tk_authority:store(AuthDataRevoked, Authority),
             _ = handle_beat(Op, succeeded, State),
             ok;
         {error, Reason} ->
@@ -136,11 +135,11 @@ check_blacklist(TokenInfo) ->
 
 %%
 
-issue_auth_data(ContextFragment, Metadata, Authority) ->
-    issue_auth_data(undefined, ContextFragment, Metadata, Authority).
+issue_auth_data(ContextFragment, Metadata, AuthorityConf) ->
+    issue_auth_data(undefined, ContextFragment, Metadata, AuthorityConf).
 
-issue_auth_data(ID, ContextFragment, Metadata, {_, AuthorityConf}) ->
-    tk_authority:create_authdata(ID, ContextFragment, Metadata, AuthorityConf).
+issue_auth_data(ID, ContextFragment, Metadata, {_, Authority}) ->
+    tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority).
 
 unique_id() ->
     <<ID:64>> = snowflake:new(),

@@ -6,12 +6,13 @@
 %% API functions
 
 -export([get_id/1]).
+-export([get_authdata_id/1]).
 -export([get_signer/1]).
--export([set_status/1]).
+-export([set_status/2]).
 -export([create_authdata/4]).
 -export([get_authdata_by_token/2]).
 -export([get_authdata_by_id/2]).
--export([store/1]).
+-export([store/2]).
 
 %% API Types
 
@@ -51,6 +52,10 @@
 get_id(Authority) ->
     maps:get(id, Authority).
 
+-spec get_authdata_id(authdata()) -> authdata_id().
+get_authdata_id(AuthData) ->
+    maps:get(id, AuthData).
+
 -spec get_signer(authority()) -> tk_token_jwt:keyname().
 get_signer(Authority) ->
     maps:get(signer, Authority).
@@ -71,23 +76,28 @@ create_authdata(ID, ContextFragment, Metadata, Authority) ->
 -spec get_authdata_by_token(tk_token_jwt:t(), authority()) ->
     {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
 get_authdata_by_token(Token, Authority) ->
+    get_authdata({token, Token}, Authority).
+
+-spec get_authdata_by_id(authdata_id(), authority()) -> {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
+get_authdata_by_id(ID, Authority) ->
+    get_authdata({id, ID}, Authority).
+
+-spec store(authdata(), authority()) -> {ok, tk_token_jwt:claims()} | {error, _Reason}.
+store(_AuthData, _Authority) ->
+    %% tk_storage:store(AuthData, ).
+    erlang:error(not_implemented).
+
+%%-------------------------------------
+%% private functions
+
+get_authdata(Selector, Authority) ->
     AuthDataSources = get_auth_data_sources(Authority),
-    case get_authdata_from_sources(AuthDataSources, Token) of
-        AuthData when AuthData =/= undefined ->
-            {ok, maybe_add_authority_id(AuthData, Authority)};
+    case get_authdata_from_sources(AuthDataSources, Selector) of
         undefined ->
-            {error, {authdata_not_found, AuthDataSources}}
+            {error, {authdata_not_found, AuthDataSources}};
+        AuthData ->
+            {ok, maybe_add_authority_id(AuthData, Authority)}
     end.
-
--spec get_authdata_by_id(authdata_id(), authority()) -> authdata().
-get_authdata_by_id(_ID, _Authority) ->
-    erlang:error(not_implemented).
-
--spec store(authdata()) -> {ok, claims()} | {error, _Reason}.
-store(AuthData) ->
-    erlang:error(not_implemented).
-
-%%
 
 get_auth_data_sources(Authority) ->
     case maps:get(authdata_sources, Authority, undefined) of
@@ -97,14 +107,14 @@ get_auth_data_sources(Authority) ->
             throw({misconfiguration, {no_authdata_sources, Authority}})
     end.
 
-get_authdata_from_sources([], _Token) ->
+get_authdata_from_sources([], _Selector) ->
     undefined;
-get_authdata_from_sources([SourceOpts | Rest], Token) ->
-    case tk_authdata_source:get_authdata(SourceOpts, Token) of
-        AuthData when AuthData =/= undefined ->
-            AuthData;
+get_authdata_from_sources([SourceOpts | Rest], Selector) ->
+    case tk_authdata_source:get_authdata(SourceOpts, Selector) of
         undefined ->
-            get_authdata_from_sources(Rest, Token)
+            get_authdata_from_sources(Rest, Selector);
+        AuthData ->
+            AuthData
     end.
 
 maybe_add_authority_id(AuthData = #{authority := _}, _Authority) ->

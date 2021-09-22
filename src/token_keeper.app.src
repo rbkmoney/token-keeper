@@ -14,6 +14,7 @@
         bouncer_client,
         how_are_you,
         erl_health,
+        machinery,
         yamerl
     ]},
     {env, []},

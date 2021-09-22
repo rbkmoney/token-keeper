@@ -24,15 +24,17 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts()) -> extracted_authdata() | undefined.
-get_authdata(Token, Opts) ->
+-spec get_authdata(tk_authdata_source:selector(), source_opts()) -> extracted_authdata() | undefined.
+get_authdata({token, V}, Opts) ->
     Methods = get_extractor_methods(Opts),
-    case extract_context_with(Methods, Token) of
+    case extract_context_with(Methods, V) of
         {Context, Metadata} ->
             make_auth_data(Context, Metadata);
         undefined ->
             undefined
-    end.
+    end;
+get_authdata(_, _Opts) ->
+    undefined.
 
 %%
 
