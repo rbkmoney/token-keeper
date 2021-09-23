@@ -138,4 +138,4 @@ get_woody_client(#{url := Url} = Automaton) ->
 
 collapse(#{history := [{_ID, _Ts, AuthData}]}, _Opts) ->
     AuthData.
-    %%tk_token_claim_utils:decode_authdata(Claim, Opts).
+%%tk_token_claim_utils:decode_authdata(Claim, Opts).
