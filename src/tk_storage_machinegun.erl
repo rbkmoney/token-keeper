@@ -2,7 +2,8 @@
 
 %% NOTE: This storage is not yet implemented
 
--include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
+%% TODO: ???
+%%-include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 
 -behaviour(tk_storage).
 -behaviour(machinery).
@@ -62,7 +63,7 @@
 %% Collapse history and return the auth data?
 -spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, not_found}.
 get(ID, Opts) ->
-    case machinery:get(?NS, ID, {undefined, undefined, forward}, backend()) of
+    case machinery:get(?NS, ID, backend()) of
         {ok, Machine} ->
             collapse(Machine, Opts);
         {error, _} = Err ->
@@ -73,11 +74,11 @@ get(ID, Opts) ->
 %% Consider ways to generate authdata ids?
 -spec store(storable_authdata(), storage_opts()) -> {ok, claims()} | {error, _Reason}.
 store(AuthData, _Opts) ->
-    Claims = tk_token_claim_utils:encode_authdata(AuthData),
+    %%Claims = tk_token_claim_utils:encode_authdata(AuthData),
     DataID = tk_authority:get_authdata_id(AuthData),
-    case machinery:start(?NS, DataID, Claims, backend()) of
+    case machinery:start(?NS, DataID, {store, AuthData}, backend()) of
         ok ->
-            {ok, Claims};
+            {ok, tk_token_claim_utils:encode_authdata(AuthData)};
         {error, _} = Err ->
             Err
     end.
@@ -94,24 +95,24 @@ revoke(ID, _Opts) ->
 
 %%-------------------------------------
 %% machinery behaviour implementation
-%% TODO: ????
 
 -spec init(machinery:args(_), machine(), handler_args(), handler_opts()) -> result().
-init(_Args, _Machine, _, _) ->
-    erlang:error({not_implemented, init}).
+init({store, AuthData}, _Machine, _, _) ->
+    #{events => [AuthData]}.
 
--spec process_repair(machinery:args(_), machine(), handler_args(), handler_opts()) ->
-    {ok, {machinery:response(_), result()}} | {error, _}.
+-spec process_repair(machinery:args(_), machine(), handler_args(), handler_opts()) -> no_return().
 process_repair(_Args, _Machine, _, _) ->
     erlang:error({not_implemented, process_repair}).
 
--spec process_timeout(machine(), handler_args(), handler_opts()) -> result().
+-spec process_timeout(machine(), handler_args(), handler_opts()) -> no_return().
 process_timeout(_Machine, _, _) ->
     erlang:error({not_implemented, process_timeout}).
 
--spec process_call(machinery:args(_), machine(), handler_args(), handler_opts()) -> {machinery:response(_), result()}.
-process_call(_Args, _Machine, _, _) ->
-    erlang:error({not_implemented, process_call}).
+-spec process_call(machinery:args(_), machine(), handler_args(), handler_opts()) -> {machinery:response(ok), result()}.
+process_call(revoke, #{history := [{_ID, _Ts, AuthData}]}, _, _) ->
+    {ok, #{
+        events => [tk_authority:set_status(AuthData, revoked)]
+    }}.
 
 %%-------------------------------------
 %% internal
@@ -135,5 +136,6 @@ get_woody_client(#{url := Url} = Automaton) ->
         transport_opts => maps:get(transport_opts, Automaton, undefined)
     }).
 
-collapse(#{history := [{_ID, _Ts, Claim}]}, Opts) ->
-    tk_token_claim_utils:decode_authdata(Claim, Opts).
+collapse(#{history := [{_ID, _Ts, AuthData}]}, _Opts) ->
+    AuthData.
+    %%tk_token_claim_utils:decode_authdata(Claim, Opts).
