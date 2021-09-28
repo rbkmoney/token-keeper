@@ -4,7 +4,6 @@
 %% Behaviour
 
 -export([get_authdata/2]).
--export([store_authdata/2]).
 
 %%
 
@@ -27,10 +26,6 @@ get_authdata({id, V}, StorageOpts) ->
             _ = logger:warning("Failed storage get: ~p", [Reason]),
             undefined
     end.
-
--spec store_authdata(stored_authdata(), source_opts()) -> {ok, tk_token_jwt:claims()} | undefined.
-store_authdata(AuthData, Opts) ->
-    tk_storage:store(AuthData, Opts).
 
 %%
 

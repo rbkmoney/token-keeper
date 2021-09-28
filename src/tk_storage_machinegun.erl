@@ -1,15 +1,10 @@
 -module(tk_storage_machinegun).
 
-%% NOTE: This storage is not yet implemented
-
 %% TODO: ???
 %%-include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 
 -behaviour(tk_storage).
 -behaviour(machinery).
-
-%% API
-%%-export([get_by_claims/2]).
 
 %% tk_storage interface
 -export([get/2]).
@@ -50,13 +45,6 @@
 -type handler_args() :: machinery:handler_args(any()).
 -type handler_opts() :: machinery:handler_args(any()).
 
-%%
-
-%%-spec get_by_claims(claims(), storage_opts()) -> {ok, storable_authdata()} | {error, not_found}.
-%%get_by_claims(_Claims, _Opts) ->
-%%    %% Extract id from claims, collapse history and return the auth data?
-%%    {error, not_found}.
-
 %%-------------------------------------
 %% tk_storage behaviour implementation
 
@@ -74,7 +62,6 @@ get(ID, Opts) ->
 %% Consider ways to generate authdata ids?
 -spec store(storable_authdata(), storage_opts()) -> {ok, claims()} | {error, _Reason}.
 store(AuthData, _Opts) ->
-    %%Claims = tk_token_claim_utils:encode_authdata(AuthData),
     DataID = tk_authority:get_authdata_id(AuthData),
     case machinery:start(?NS, DataID, {store, AuthData}, backend()) of
         ok ->
@@ -138,4 +125,3 @@ get_woody_client(#{url := Url} = Automaton) ->
 
 collapse(#{history := [{_ID, _Ts, AuthData}]}, _Opts) ->
     AuthData.
-%%tk_token_claim_utils:decode_authdata(Claim, Opts).

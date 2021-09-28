@@ -84,7 +84,12 @@ get_authdata_by_id(ID, Authority) ->
 
 -spec store(authdata(), authority()) -> {ok, tk_token_jwt:claims()} | {error, _Reason}.
 store(AuthData, Authority) ->
-    store_authdata_to_sources(get_auth_data_sources(Authority), AuthData).
+    case get_storage_opts(Authority) of
+        {_Source, Opts} ->
+            tk_storage:store(AuthData, Opts);
+        false ->
+            {error, {misconfiguration, {no_storage_options, Authority}}}
+    end.
 
 %%-------------------------------------
 %% private functions
@@ -116,16 +121,6 @@ get_authdata_from_sources([SourceOpts | Rest], Selector) ->
             AuthData
     end.
 
-store_authdata_to_sources([], _AuthData) ->
-    {error, no_suitable_source};
-store_authdata_to_sources([SourceOpts | Rest], AuthData) ->
-    case tk_authdata_source:store_authdata(SourceOpts, AuthData) of
-        undefined ->
-            store_authdata_to_sources(Rest, AuthData);
-        {ok, _} = Res ->
-            Res
-    end.
-
 maybe_add_authority_id(AuthData = #{authority := _}, _Authority) ->
     AuthData;
 maybe_add_authority_id(AuthData, Authority) ->
@@ -138,3 +133,6 @@ add_id(AuthData, ID) ->
 
 add_authority_id(AuthData, Authority) ->
     AuthData#{authority => maps:get(id, Authority)}.
+
+get_storage_opts(Authority) ->
+    lists:keyfind(storage, 1, get_auth_data_sources(Authority)).

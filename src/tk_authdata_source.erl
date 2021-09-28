@@ -3,12 +3,10 @@
 %% Behaviour
 
 -callback get_authdata(selector(), source_opts()) -> sourced_authdata() | undefined.
--callback store_authdata(sourced_authdata(), source_opts()) -> {ok, tk_token_jwt:claims()} | undefined.
 
 %% API functions
 
 -export([get_authdata/2]).
--export([store_authdata/2]).
 
 %% API Types
 
@@ -47,12 +45,6 @@ get_authdata(AuthDataSource, Selector) ->
     {Source, Opts} = get_source_opts(AuthDataSource),
     Hander = get_source_handler(Source),
     Hander:get_authdata(Selector, Opts).
-
--spec store_authdata(authdata_source(), sourced_authdata()) -> {ok, tk_token_jwt:claims()} | undefined.
-store_authdata(AuthDataSource, AuthData) ->
-    {Source, Opts} = get_source_opts(AuthDataSource),
-    Hander = get_source_handler(Source),
-    Hander:store_authdata(AuthData, Opts).
 
 %%
 
