@@ -1,7 +1,6 @@
 -module(tk_storage_machinegun).
 
-%% TODO: ???
-%%-include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
+-include_lib("token_keeper_proto/include/tk_events_thrift.hrl").
 
 -behaviour(tk_storage).
 -behaviour(machinery).
@@ -40,8 +39,9 @@
 }.
 
 %% TODO: ????
--type machine() :: machinery:machine(claims(), any()).
--type result() :: machinery:result(claims(), any()).
+-type events() :: tk_events_thrift:'AuthDataChange'().
+-type machine() :: machinery:machine(events(), any()).
+-type result() :: machinery:result(events(), any()).
 -type handler_args() :: machinery:handler_args(any()).
 -type handler_opts() :: machinery:handler_args(any()).
 
@@ -49,7 +49,7 @@
 %% tk_storage behaviour implementation
 
 %% Collapse history and return the auth data?
--spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, not_found}.
+-spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(ID, Opts) ->
     case machinery:get(?NS, ID, backend()) of
         {ok, Machine} ->
@@ -63,7 +63,7 @@ get(ID, Opts) ->
 -spec store(storable_authdata(), storage_opts()) -> {ok, claims()} | {error, _Reason}.
 store(AuthData, _Opts) ->
     DataID = tk_authority:get_authdata_id(AuthData),
-    case machinery:start(?NS, DataID, {store, AuthData}, backend()) of
+    case machinery:start(?NS, DataID, {store, encode(AuthData)}, backend()) of
         ok ->
             {ok, tk_token_claim_utils:encode_authdata(AuthData)};
         {error, _} = Err ->
@@ -85,7 +85,7 @@ revoke(ID, _Opts) ->
 
 -spec init(machinery:args(_), machine(), handler_args(), handler_opts()) -> result().
 init({store, AuthData}, _Machine, _, _) ->
-    #{events => [AuthData]}.
+    #{events => [{created, #tk_events_AuthDataCreated{authdata = AuthData}}]}.
 
 -spec process_repair(machinery:args(_), machine(), handler_args(), handler_opts()) -> no_return().
 process_repair(_Args, _Machine, _, _) ->
@@ -96,9 +96,9 @@ process_timeout(_Machine, _, _) ->
     erlang:error({not_implemented, process_timeout}).
 
 -spec process_call(machinery:args(_), machine(), handler_args(), handler_opts()) -> {machinery:response(ok), result()}.
-process_call(revoke, #{history := [{_ID, _Ts, AuthData}]}, _, _) ->
+process_call(revoke, _Machine, _, _) ->
     {ok, #{
-        events => [tk_authority:set_status(AuthData, revoked)]
+        events => [{status_changed, #tk_events_AuthDataStatusChanged{status = revoked}}]
     }}.
 
 %%-------------------------------------
@@ -123,5 +123,27 @@ get_woody_client(#{url := Url} = Automaton) ->
         transport_opts => maps:get(transport_opts, Automaton, undefined)
     }).
 
-collapse(#{history := [{_ID, _Ts, AuthData}]}, _Opts) ->
-    AuthData.
+collapse(#{history := History}, _Opts) ->
+    collapse_history(History, undefined).
+
+collapse_history([], AuthData) when AuthData =/= undefined ->
+    {ok, AuthData};
+collapse_history([{_, _, {created, #tk_events_AuthDataCreated{authdata = AuthData}}} | Rest], undefined) ->
+    #tk_events_AuthDataSerialized{id = ID, context = Ctx, metadata = Meta, authority = Auth} = AuthData,
+    collapse_history(Rest, tk_authority:create_authdata(ID, Ctx, Meta, Auth));
+collapse_history([{_, _, {status_changed, #tk_events_AuthDataStatusChanged{status = Status}}} | Rest], AuthData) when
+    AuthData =/= undefined
+->
+    collapse_history(Rest, tk_authority:set_status(AuthData, Status));
+collapse_history(_, _) ->
+    {error, wrong_history}.
+
+encode(AuthData) ->
+    Values = tk_authority:get_values(record_info(fields, 'tk_events_AuthDataSerialized'), AuthData),
+    #tk_events_AuthDataSerialized{
+        id = maps:get(id, Values),
+        status = maps:get(status, Values),
+        context = maps:get(context, Values),
+        metadata = maps:get(metadata, Values),
+        authority = maps:get(authority, Values)
+    }.

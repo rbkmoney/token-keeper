@@ -13,6 +13,7 @@
 -export([get_authdata_by_token/2]).
 -export([get_authdata_by_id/2]).
 -export([store/2]).
+-export([get_values/2]).
 
 %% API Types
 
@@ -36,6 +37,8 @@
 -type status() :: active | revoked.
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
 -type metadata() :: #{binary() => binary()}.
+
+-type authdata_keys() :: [atom()].
 
 -export_type([authority/0]).
 
@@ -64,7 +67,8 @@ get_signer(Authority) ->
 set_status(AuthData, Status) ->
     AuthData#{status => Status}.
 
--spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority()) -> authdata().
+-spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority() | autority_id()) ->
+    authdata().
 create_authdata(ID, ContextFragment, Metadata, Authority) ->
     AuthData = #{
         status => active,
@@ -90,6 +94,10 @@ store(AuthData, Authority) ->
         false ->
             {error, {misconfiguration, {no_storage_options, Authority}}}
     end.
+
+-spec get_values(authdata_keys(), authdata()) -> #{atom() => any()}.
+get_values(Keys, AuthData) ->
+    maps:with(Keys, AuthData).
 
 %%-------------------------------------
 %% private functions
@@ -131,8 +139,10 @@ add_id(AuthData, undefined) ->
 add_id(AuthData, ID) ->
     AuthData#{id => ID}.
 
-add_authority_id(AuthData, Authority) ->
-    AuthData#{authority => maps:get(id, Authority)}.
+add_authority_id(AuthData, Authority) when is_map(Authority) ->
+    AuthData#{authority => maps:get(id, Authority)};
+add_authority_id(AuthData, Authority) when is_binary(Authority) ->
+    AuthData#{authority => Authority}.
 
 get_storage_opts(Authority) ->
     lists:keyfind(storage, 1, get_auth_data_sources(Authority)).
