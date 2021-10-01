@@ -13,6 +13,7 @@
 -export([get_authdata_by_token/2]).
 -export([get_authdata_by_id/2]).
 -export([store/2]).
+-export([revoke/2]).
 -export([get_values/2]).
 
 %% API Types
@@ -88,12 +89,11 @@ get_authdata_by_id(ID, Authority) ->
 
 -spec store(authdata(), authority()) -> {ok, tk_token_jwt:claims()} | {error, _Reason}.
 store(AuthData, Authority) ->
-    case get_storage_opts(Authority) of
-        {_Source, Opts} ->
-            tk_storage:store(AuthData, Opts);
-        false ->
-            {error, {misconfiguration, {no_storage_options, Authority}}}
-    end.
+    do_storage_call(AuthData, Authority, fun tk_storage:store/2).
+
+-spec revoke(authdata(), authority()) -> ok | {error, _Reason}.
+revoke(AuthData, Authority) ->
+    do_storage_call(set_status(AuthData, revoked), Authority, fun tk_storage:revoke/2).
 
 -spec get_values(authdata_keys(), authdata()) -> #{atom() => any()}.
 get_values(Keys, AuthData) ->
@@ -146,3 +146,11 @@ add_authority_id(AuthData, Authority) when is_binary(Authority) ->
 
 get_storage_opts(Authority) ->
     lists:keyfind(storage, 1, get_auth_data_sources(Authority)).
+
+do_storage_call(AuthData, Authority, Func) ->
+    case get_storage_opts(Authority) of
+        {_Source, Opts} ->
+            Func(AuthData, Opts);
+        false ->
+            {error, {misconfiguration, {no_storage_options, Authority}}}
+    end.

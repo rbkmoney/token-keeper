@@ -106,10 +106,9 @@ handle_function_('Revoke' = Op, {ID}, State) ->
 
     case tk_authority:get_authdata_by_id(ID, Authority) of
         {ok, AuthData} ->
-            AuthDataRevoked = tk_authority:set_status(AuthData, revoked),
             Result =
-                case tk_authority:store(AuthDataRevoked, Authority) of
-                    {ok, _} -> succeeded;
+                case tk_authority:revoke(AuthData, Authority) of
+                    ok -> succeeded;
                     {error, Reason} -> {failed, Reason}
                 end,
             _ = handle_beat(Op, Result, State),
