@@ -82,11 +82,17 @@ create_authdata(ID, ContextFragment, Metadata, Authority) ->
 -spec get_authdata_by_token(tk_token_jwt:t(), authority()) ->
     {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
 get_authdata_by_token(Token, Authority) ->
-    get_authdata({token, Token}, Authority).
+    AuthDataSources = get_auth_data_sources(Authority),
+    case get_authdata_from_sources(AuthDataSources, Token) of
+        #{} = AuthData ->
+            {ok, maybe_add_authority_id(AuthData, Authority)};
+        undefined ->
+            {error, {authdata_not_found, AuthDataSources}}
+    end.
 
--spec get_authdata_by_id(authdata_id(), authority()) -> {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
+-spec get_authdata_by_id(authdata_id(), authority()) -> {ok, authdata()} | {error, _Reason}.
 get_authdata_by_id(ID, Authority) ->
-    get_authdata({id, ID}, Authority).
+    do_storage_call(ID, Authority, fun tk_storage:get/2).
 
 -spec store(authdata(), authority()) -> ok | {error, _Reason}.
 store(AuthData, Authority) ->
@@ -94,7 +100,7 @@ store(AuthData, Authority) ->
 
 -spec revoke(authdata(), authority()) -> ok | {error, _Reason}.
 revoke(AuthData, Authority) ->
-    do_storage_call(set_status(AuthData, revoked), Authority, fun tk_storage:revoke/2).
+    do_storage_call(get_authdata_id(AuthData), Authority, fun tk_storage:revoke/2).
 
 -spec get_value(authdata_fields(), authdata()) -> authdata_values().
 get_value(Field, AuthData) ->
@@ -102,15 +108,6 @@ get_value(Field, AuthData) ->
 
 %%-------------------------------------
 %% private functions
-
-get_authdata(Selector, Authority) ->
-    AuthDataSources = get_auth_data_sources(Authority),
-    case get_authdata_from_sources(AuthDataSources, Selector) of
-        undefined ->
-            {error, {authdata_not_found, AuthDataSources}};
-        AuthData ->
-            {ok, maybe_add_authority_id(AuthData, Authority)}
-    end.
 
 get_auth_data_sources(Authority) ->
     case maps:get(authdata_sources, Authority, undefined) of
@@ -120,12 +117,12 @@ get_auth_data_sources(Authority) ->
             throw({misconfiguration, {no_authdata_sources, Authority}})
     end.
 
-get_authdata_from_sources([], _Selector) ->
+get_authdata_from_sources([], _Token) ->
     undefined;
-get_authdata_from_sources([SourceOpts | Rest], Selector) ->
-    case tk_authdata_source:get_authdata(SourceOpts, Selector) of
+get_authdata_from_sources([SourceOpts | Rest], Token) ->
+    case tk_authdata_source:get_authdata(SourceOpts, Token) of
         undefined ->
-            get_authdata_from_sources(Rest, Selector);
+            get_authdata_from_sources(Rest, Token);
         AuthData ->
             AuthData
     end.
@@ -148,10 +145,11 @@ add_authority_id(AuthData, Authority) when is_binary(Authority) ->
 get_storage_opts(Authority) ->
     lists:keyfind(storage, 1, get_auth_data_sources(Authority)).
 
-do_storage_call(AuthData, Authority, Func) ->
+-spec do_storage_call(authdata() | authdata_id(), authority(), fun()) -> ok | {ok, authdata()} | {error, _Reason}.
+do_storage_call(Operand, Authority, Func) ->
     case get_storage_opts(Authority) of
         {_Source, Opts} ->
-            Func(AuthData, Opts);
+            Func(Operand, Opts);
         false ->
             {error, {misconfiguration, {no_storage_options, Authority}}}
     end.

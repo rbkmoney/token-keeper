@@ -62,7 +62,7 @@ get(ID, Opts) ->
 -spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
 store(AuthData, _Opts) ->
     DataID = tk_authority:get_authdata_id(AuthData),
-    machinery:start(?NS, DataID, {store, encode(AuthData)}, backend()).
+    machinery:start(?NS, DataID, {store, prepare(AuthData)}, backend()).
 
 %% Post a revocation event?
 -spec revoke(authdata_id(), storage_opts()) -> ok | {error, _Reason}.
@@ -132,7 +132,7 @@ collapse_history([{_, _, {status_changed, #tk_events_AuthDataStatusChanged{statu
 collapse_history(_, _) ->
     {error, wrong_history}.
 
-encode(AuthData) ->
+prepare(AuthData) ->
     #tk_events_AuthDataSerialized{
         id = tk_authority:get_authdata_id(AuthData),
         status = tk_authority:get_value(status, AuthData),

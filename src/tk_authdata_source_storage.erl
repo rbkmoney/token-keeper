@@ -15,11 +15,9 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_authdata_source:selector(), source_opts()) -> stored_authdata() | undefined.
-get_authdata({token, V}, StorageOpts) ->
-    get_authdata({id, get_authdata_id(V)}, StorageOpts);
-get_authdata({id, V}, StorageOpts) ->
-    case tk_storage:get(V, StorageOpts) of
+-spec get_authdata(tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
+get_authdata(Token, StorageOpts) ->
+    case tk_storage:get(get_authdata_id(Token), StorageOpts) of
         {ok, AuthData} ->
             AuthData;
         {error, Reason} ->

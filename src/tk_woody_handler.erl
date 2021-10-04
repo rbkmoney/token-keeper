@@ -73,8 +73,8 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
                     _ = handle_beat(Op, succeeded, State1),
                     {ok, EncodedAuthData};
-                {error, _} = Err ->
-                    _ = handle_beat(Op, construct_not_found_error(Err), State1),
+                {error, Reason} ->
+                    _ = handle_beat(Op, {failed, Reason}, State1),
                     woody_error:raise(business, #token_keeper_AuthDataNotFound{})
             end;
         {error, {verification, Reason}} ->
@@ -96,8 +96,8 @@ handle_function_('Get' = Op, {ID}, State) ->
             EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
             _ = handle_beat(Op, succeeded, State),
             {ok, EncodedAuthData};
-        {error, _} = Err ->
-            _ = handle_beat(Op, construct_not_found_error(Err), State),
+        {error, Reason} ->
+            _ = handle_beat(Op, {failed, Reason}, State),
             woody_error:raise(business, #token_keeper_AuthDataNotFound{})
     end;
 handle_function_('Revoke' = Op, {ID}, State) ->
@@ -114,15 +114,12 @@ handle_function_('Revoke' = Op, {ID}, State) ->
                 end,
             _ = handle_beat(Op, Result, State),
             ok;
-        {error, _} = Err ->
-            _ = handle_beat(Op, construct_not_found_error(Err), State),
+        {error, Reason} ->
+            _ = handle_beat(Op, {failed, Reason}, State),
             woody_error:raise(business, #token_keeper_AuthDataNotFound{})
     end.
 
 %% Internal functions
-
-construct_not_found_error({error, Reason}) ->
-    {failed, {not_found, Reason}}.
 
 verify_token(Token, TokenSourceContextDecoded) ->
     case tk_token_jwt:verify(Token, TokenSourceContextDecoded) of
