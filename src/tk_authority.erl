@@ -8,7 +8,6 @@
 -export([get_id/1]).
 -export([get_authdata_id/1]).
 -export([get_signer/1]).
--export([set_status/2]).
 -export([create_authdata/4]).
 -export([get_authdata_by_token/2]).
 -export([get_authdata_by_id/2]).
@@ -64,10 +63,6 @@ get_authdata_id(AuthData) ->
 -spec get_signer(authority()) -> tk_token_jwt:keyname().
 get_signer(Authority) ->
     maps:get(signer, Authority).
-
--spec set_status(authdata(), status()) -> authdata().
-set_status(AuthData, Status) ->
-    AuthData#{status => Status}.
 
 -spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority() | autority_id()) ->
     authdata().
