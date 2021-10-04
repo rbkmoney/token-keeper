@@ -139,11 +139,10 @@ collapse_history(_, _) ->
     {error, wrong_history}.
 
 encode(AuthData) ->
-    Values = tk_authority:get_values(record_info(fields, 'tk_events_AuthDataSerialized'), AuthData),
     #tk_events_AuthDataSerialized{
-        id = maps:get(id, Values),
-        status = maps:get(status, Values),
-        context = maps:get(context, Values),
-        metadata = maps:get(metadata, Values),
-        authority = maps:get(authority, Values)
+        id = tk_authority:get_authdata_id(AuthData),
+        status = tk_authority:get_value(status, AuthData),
+        context = tk_authority:get_value(context, AuthData),
+        metadata = tk_authority:get_value(metadata, AuthData),
+        authority = tk_authority:get_value(authority, AuthData)
     }.

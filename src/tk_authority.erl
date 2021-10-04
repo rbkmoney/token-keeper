@@ -14,7 +14,7 @@
 -export([get_authdata_by_id/2]).
 -export([store/2]).
 -export([revoke/2]).
--export([get_values/2]).
+-export([get_value/2]).
 
 %% API Types
 
@@ -39,7 +39,8 @@
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
 -type metadata() :: #{binary() => binary()}.
 
--type authdata_keys() :: [atom()].
+-type authdata_fields() :: status | context | authority | metadata.
+-type authdata_values() :: status() | encoded_context_fragment() | autority_id() | metadata().
 
 -export_type([authority/0]).
 
@@ -95,9 +96,9 @@ store(AuthData, Authority) ->
 revoke(AuthData, Authority) ->
     do_storage_call(set_status(AuthData, revoked), Authority, fun tk_storage:revoke/2).
 
--spec get_values(authdata_keys(), authdata()) -> #{atom() => any()}.
-get_values(Keys, AuthData) ->
-    maps:with(Keys, AuthData).
+-spec get_value(authdata_fields(), authdata()) -> authdata_values().
+get_value(Field, AuthData) ->
+    maps:get(Field, AuthData).
 
 %%-------------------------------------
 %% private functions
