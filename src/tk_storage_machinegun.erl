@@ -99,7 +99,7 @@ process_call(revoke, _Machine, _, _) ->
 %% internal
 
 backend() ->
-    case genlib_app:env(token_keeper, services, #{}) of
+    case genlib_app:env(token_keeper, service_clients, #{}) of
         #{automaton := Automaton} ->
             machinery_mg_backend:new(woody_context:new(), #{
                 client => get_woody_client(Automaton),
