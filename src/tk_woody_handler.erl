@@ -39,7 +39,8 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
     {ok, Token} =
         case tk_authority:store(AuthData, Authority) of
-            {ok, Claims} ->
+            ok ->
+                Claims = tk_token_claim_utils:encode_authdata(AuthData),
                 tk_token_jwt:issue(ID, Claims, get_signer(get_autority_config(Authority)));
             {error, Reason} ->
                 _ = handle_beat(Op, {failed, Reason}, State),

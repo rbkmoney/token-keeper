@@ -7,7 +7,7 @@
 %%
 
 -callback get(authdata_id(), opts()) -> {ok, tk_storage:storable_authdata()} | {error, _Reason}.
--callback store(tk_storage:storable_authdata(), opts()) -> {ok, claims()} | {error, _Reason}.
+-callback store(tk_storage:storable_authdata(), opts()) -> ok | {error, _Reason}.
 -callback revoke(authdata_id(), opts()) -> ok | {error, _Reason}.
 
 %%
@@ -28,7 +28,6 @@
 %%
 
 -type authdata_id() :: tk_authority:authdata_id().
--type claims() :: tk_token_jwt:claims().
 
 -type storage() :: machinegun.
 -type opts() :: tk_storage_machinegun:storage_opts().
@@ -41,7 +40,7 @@ get(DataID, StorageOpts) ->
     Handler = get_storage_handler(Storage),
     Handler:get(DataID, Opts).
 
--spec store(storable_authdata(), storage_opts()) -> {ok, claims()} | {error, _Reason}.
+-spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
 store(AuthData, StorageOpts) ->
     {Storage, Opts} = get_storage_opts(StorageOpts),
     Handler = get_storage_handler(Storage),

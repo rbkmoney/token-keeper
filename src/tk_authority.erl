@@ -88,7 +88,7 @@ get_authdata_by_token(Token, Authority) ->
 get_authdata_by_id(ID, Authority) ->
     get_authdata({id, ID}, Authority).
 
--spec store(authdata(), authority()) -> {ok, tk_token_jwt:claims()} | {error, _Reason}.
+-spec store(authdata(), authority()) -> ok | {error, _Reason}.
 store(AuthData, Authority) ->
     do_storage_call(AuthData, Authority, fun tk_storage:store/2).
 

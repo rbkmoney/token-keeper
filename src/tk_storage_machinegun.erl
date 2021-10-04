@@ -25,7 +25,6 @@
 
 -type storable_authdata() :: tk_storage:storable_authdata().
 -type authdata_id() :: tk_authority:authdata_id().
--type claims() :: tk_token_jwt:claims().
 
 -type schema() :: machinery_mg_schema_generic | atom().
 -type event_handler() :: woody:ev_handler() | [woody:ev_handler()].
@@ -60,15 +59,10 @@ get(ID, Opts) ->
 
 %% Start a new machine, post event, make claims with id
 %% Consider ways to generate authdata ids?
--spec store(storable_authdata(), storage_opts()) -> {ok, claims()} | {error, _Reason}.
+-spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
 store(AuthData, _Opts) ->
     DataID = tk_authority:get_authdata_id(AuthData),
-    case machinery:start(?NS, DataID, {store, encode(AuthData)}, backend()) of
-        ok ->
-            {ok, tk_token_claim_utils:encode_authdata(AuthData)};
-        {error, _} = Err ->
-            Err
-    end.
+    machinery:start(?NS, DataID, {store, encode(AuthData)}, backend()).
 
 %% Post a revocation event?
 -spec revoke(authdata_id(), storage_opts()) -> ok | {error, _Reason}.
