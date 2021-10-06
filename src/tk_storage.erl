@@ -36,23 +36,22 @@
 
 -spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(DataID, StorageOpts) ->
-    {Storage, Opts} = get_storage_opts(StorageOpts),
-    Handler = get_storage_handler(Storage),
-    Handler:get(DataID, Opts).
+    call(DataID, StorageOpts, get).
 
 -spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
 store(AuthData, StorageOpts) ->
-    {Storage, Opts} = get_storage_opts(StorageOpts),
-    Handler = get_storage_handler(Storage),
-    Handler:store(AuthData, Opts).
+    call(AuthData, StorageOpts, store).
 
--spec revoke(authdata_id(), storage_opts()) -> ok | {error, _Reason}.
+-spec revoke(authdata_id(), storage_opts()) -> ok | {error, notfound}.
 revoke(DataID, StorageOpts) ->
-    {Storage, Opts} = get_storage_opts(StorageOpts),
-    Handler = get_storage_handler(Storage),
-    Handler:revoke(DataID, Opts).
+    call(DataID, StorageOpts, revoke).
 
 %%
+
+call(Operand, StorageOpts, Func) ->
+    {Storage, Opts} = get_storage_opts(StorageOpts),
+    Handler = get_storage_handler(Storage),
+    Handler:Func(Operand, Opts).
 
 get_storage_handler(machinegun) ->
     tk_storage_machinegun.

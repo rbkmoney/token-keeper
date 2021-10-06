@@ -16,7 +16,7 @@
 -export([process_timeout/3]).
 -export([process_call/4]).
 
--type storage_opts() :: #{}.
+-type storage_opts() :: #{woody_ctx => woody_context:ctx()}.
 -export_type([storage_opts/0]).
 
 -define(NS, tk_authdata).
@@ -49,9 +49,9 @@
 %% Collapse history and return the auth data?
 -spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(ID, Opts) ->
-    case machinery:get(?NS, ID, backend()) of
+    case machinery:get(?NS, ID, backend(Opts)) of
         {ok, Machine} ->
-            collapse(Machine, Opts);
+            collapse(Machine);
         {error, _} = Err ->
             Err
     end.
@@ -59,17 +59,17 @@ get(ID, Opts) ->
 %% Start a new machine, post event, make claims with id
 %% Consider ways to generate authdata ids?
 -spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
-store(AuthData, _Opts) ->
+store(AuthData, Opts) ->
     DataID = tk_authority:get_authdata_id(AuthData),
-    machinery:start(?NS, DataID, {store, AuthData}, backend()).
+    machinery:start(?NS, DataID, {store, AuthData}, backend(Opts)).
 
 %% Post a revocation event?
--spec revoke(authdata_id(), storage_opts()) -> ok | {error, _Reason}.
-revoke(ID, _Opts) ->
-    case machinery:call(?NS, ID, revoke, backend()) of
+-spec revoke(authdata_id(), storage_opts()) -> ok | {error, notfound}.
+revoke(ID, Opts) ->
+    case machinery:call(?NS, ID, revoke, backend(Opts)) of
         {ok, _Reply} ->
             ok;
-        {error, _} = Err ->
+        {error, notfound} = Err ->
             Err
     end.
 
@@ -107,12 +107,12 @@ process_call(revoke, _Machine, _, _) ->
 %%-------------------------------------
 %% internal
 
-backend() ->
+backend(_Opts) ->
     case genlib_app:env(token_keeper, service_clients, #{}) of
         #{automaton := Automaton} ->
             machinery_mg_backend:new(woody_context:new(), #{
                 client => get_woody_client(Automaton),
-                schema => maps:get(schema, Automaton, machinery_mg_schema_generic)
+                schema => machinery_mg_schema_generic
             });
         #{} ->
             erlang:error({misconfiguration, automaton})
@@ -126,7 +126,7 @@ get_woody_client(#{url := Url} = Automaton) ->
         transport_opts => maps:get(transport_opts, Automaton, undefined)
     }).
 
-collapse(#{history := History}, _Opts) ->
+collapse(#{history := History}) ->
     collapse_history(History, undefined).
 
 collapse_history([], AuthData) when AuthData =/= undefined ->

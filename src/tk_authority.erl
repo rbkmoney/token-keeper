@@ -20,8 +20,10 @@
 -type authority() :: #{
     id := autority_id(),
     signer => tk_token_jwt:keyname(),
-    authdata_sources := [tk_authdata_source:authdata_source()]
+    authdata_sources := authdata_sources()
 }.
+
+-type authdata_sources() :: [tk_authdata_source:authdata_source()].
 
 -type autority_id() :: binary().
 
@@ -93,9 +95,9 @@ get_authdata_by_id(ID, Authority) ->
 store(AuthData, Authority) ->
     do_storage_call(AuthData, Authority, fun tk_storage:store/2).
 
--spec revoke(authdata(), authority()) -> ok | {error, _Reason}.
-revoke(AuthData, Authority) ->
-    do_storage_call(get_authdata_id(AuthData), Authority, fun tk_storage:revoke/2).
+-spec revoke(authdata_id(), authority()) -> ok | {error, notfound}.
+revoke(ID, Authority) ->
+    do_storage_call(ID, Authority, fun tk_storage:revoke/2).
 
 -spec get_value(authdata_fields(), authdata()) -> authdata_values().
 get_value(Field, AuthData) ->
@@ -104,9 +106,10 @@ get_value(Field, AuthData) ->
 %%-------------------------------------
 %% private functions
 
+-spec get_auth_data_sources(authority()) -> authdata_sources().
 get_auth_data_sources(Authority) ->
     case maps:get(authdata_sources, Authority, undefined) of
-        Sources when Sources =/= undefined ->
+        Sources when is_list(Sources) ->
             Sources;
         undefined ->
             throw({misconfiguration, {no_authdata_sources, Authority}})

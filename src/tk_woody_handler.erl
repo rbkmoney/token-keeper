@@ -28,20 +28,19 @@ handle_function(Op, Args, WoodyCtx, Opts) ->
     handle_function_(Op, Args, State).
 
 handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
-    %% TODO: Change protocol to include authdata id
     %% Create - создает новую AuthData, используя переданные в качестве
     %% аргументов данные и сохраняет их в хранилище, после чего выписывает
     %% новый JWT-токен, в котором содержится AuthDataID (на данный момент
     %% предполагается, что AuthDataID == jwt-клейму “JTI”). По умолчанию
     %% status токена - active; authority - id выписывающей authority.
     _ = handle_beat(Op, started, State),
-    Authority = get_issuing_authority(),
+    {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
     AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
     {ok, Token} =
         case tk_authority:store(AuthData, Authority) of
             ok ->
                 Claims = tk_token_claim_utils:encode_authdata(AuthData),
-                tk_token_jwt:issue(ID, Claims, get_signer(get_autority_config(Authority)));
+                tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf));
             {error, Reason} ->
                 _ = handle_beat(Op, {failed, Reason}, State),
                 throw({misconfiguration, Reason})
@@ -87,7 +86,7 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
 handle_function_('Get' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {ID, Authority} = AuthorityConf = get_autority_config(ID),
+    {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
 
     case tk_authority:get_authdata_by_id(ID, Authority) of
         {ok, AuthData} ->
@@ -103,19 +102,14 @@ handle_function_('Get' = Op, {ID}, State) ->
 handle_function_('Revoke' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {ID, Authority} = get_autority_config(ID),
+    {_, Authority} = get_autority_config(get_issuing_authority()),
 
-    case tk_authority:get_authdata_by_id(ID, Authority) of
-        {ok, AuthData} ->
-            Result =
-                case tk_authority:revoke(AuthData, Authority) of
-                    ok -> succeeded;
-                    {error, Reason} -> {failed, Reason}
-                end,
-            _ = handle_beat(Op, Result, State),
+    case tk_authority:revoke(ID, Authority) of
+        ok ->
+            _ = handle_beat(Op, succeeded, State),
             ok;
-        {error, Reason} ->
-            _ = handle_beat(Op, {failed, Reason}, State),
+        {error, notfound} ->
+            _ = handle_beat(Op, {failed, notfound}, State),
             woody_error:raise(business, #token_keeper_AuthDataNotFound{})
     end.
 
