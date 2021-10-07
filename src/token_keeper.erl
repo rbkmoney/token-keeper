@@ -73,7 +73,7 @@ init([]) ->
     TokenBlacklistSpec = tk_token_blacklist:child_spec(TokenBlacklistOpts),
     {ok,
         {
-            #{strategy => one_for_all, intensity => 6, period => 30},
+            #{strategy => one_for_one, intensity => 6, period => 30},
             [HandlerChildSpec, TokensChildSpec, TokenBlacklistSpec | AuditChildSpecs]
         }}.
 
