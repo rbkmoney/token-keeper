@@ -337,7 +337,8 @@ ensure_store_key(KeyName, KeyOpts) ->
             exit({import_error, KeyName, Source, Reason})
     end.
 
--spec store_key(keyname(), {pem_file, file:filename()}, authority()) -> ok | {error, file:posix() | {unknown_key, _}}.
+-spec store_key(keyname(), {pem_file, file:filename()}, authority()) ->
+    ok | {error, file:posix() | {unknown_key | duplicate_key, _}}.
 store_key(Keyname, {pem_file, Filename}, Authority) ->
     store_key(Keyname, {pem_file, Filename}, Authority, #{
         kid => fun derive_kid_from_public_key_pem_entry/1
@@ -354,12 +355,12 @@ derive_kid_from_public_key_pem_entry(JWK) ->
 }.
 
 -spec store_key(keyname(), {pem_file, file:filename()}, authority(), store_opts()) ->
-    ok | {error, file:posix() | {unknown_key, _}}.
+    ok | {error, file:posix() | {unknown_key | duplicate_key, _}}.
 store_key(Keyname, {pem_file, Filename}, Authority, Opts) ->
     case jose_jwk:from_pem_file(Filename) of
         JWK = #jose_jwk{} ->
             Key = construct_key(derive_kid(JWK, Opts), JWK),
-            ok = insert_key(Keyname, Key#{authority => Authority});
+            insert_unique_key(Keyname, Key#{authority => Authority});
         Error = {error, _} ->
             Error
     end.
@@ -388,6 +389,14 @@ construct_key(KID, JWK) ->
         verifier => Verifier,
         can_verify => Verifier /= undefined
     }.
+
+insert_unique_key(Keyname, KeyInfo = #{kid := KID}) ->
+    case get_key_by_kid(KID) of
+        undefined ->
+            insert_key(Keyname, KeyInfo);
+        _ ->
+            {error, {duplicate_key, Keyname}}
+    end.
 
 insert_key(Keyname, KeyInfo = #{kid := KID}) ->
     insert_values(#{
