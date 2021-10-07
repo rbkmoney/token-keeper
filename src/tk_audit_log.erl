@@ -237,45 +237,19 @@ get_level({get_by_token, started}, _Level) -> log_allowed(debug);
 get_level({create_ephemeral, started}, _Level) -> log_allowed(debug);
 get_level(_, Level) -> Level.
 
-get_message({get_by_token, started}) -> <<"get_by_token started">>;
-get_message({get_by_token, succeeded}) -> <<"get_by_token succeeded">>;
-get_message({get_by_token, {failed, _}}) -> <<"get_by_token failed">>;
-get_message({create_ephemeral, started}) -> <<"create_ephemeral started">>;
-get_message({create_ephemeral, succeeded}) -> <<"create_ephemeral succeeded">>.
+get_message({Op, {failed, _}}) -> get_message({Op, failed});
+get_message({Op, Event}) -> iolist_to_binary([atom_to_binary(Op), <<" ">>, atom_to_binary(Event)]).
 
-get_beat_metadata({get_by_token, Event}) ->
+get_beat_metadata({Op, Event}) ->
+    #{Op => build_event(Event)}.
+
+build_event({failed, Error}) ->
     #{
-        get_by_token =>
-            case Event of
-                started ->
-                    #{
-                        event => started
-                    };
-                succeeded ->
-                    #{
-                        event => succeeded
-                    };
-                {failed, Error} ->
-                    #{
-                        event => failed,
-                        error => encode_error(Error)
-                    }
-            end
+        event => failed,
+        error => encode_error(Error)
     };
-get_beat_metadata({create_ephemeral, Event}) ->
-    #{
-        create_ephemeral =>
-            case Event of
-                started ->
-                    #{
-                        event => started
-                    };
-                succeeded ->
-                    #{
-                        event => succeeded
-                    }
-            end
-    }.
+build_event(Event) ->
+    #{event => Event}.
 
 encode_error({Class, Details}) when is_atom(Class) ->
     #{class => Class, details => genlib:format(Details)};

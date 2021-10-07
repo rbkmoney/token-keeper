@@ -59,4 +59,6 @@ get_storage_handler(machinegun) ->
 get_storage_opts({_Storage, _Opts} = StorageOpts) ->
     StorageOpts;
 get_storage_opts(Storage) when is_atom(Storage) ->
-    {Storage, #{}}.
+    {Storage, #{}};
+get_storage_opts(StorageOpts) ->
+    {error, {misconfiguration, {no_storage_options, StorageOpts}}}.

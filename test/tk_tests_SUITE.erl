@@ -30,6 +30,7 @@
 -export([basic_issuing_test/1]).
 -export([jti_and_authority_blacklist_test/1]).
 -export([empty_blacklist_test/1]).
+-export([simple_create_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -65,7 +66,8 @@ all() ->
         {group, claim_only},
         {group, invoice_template_access_token},
         {group, issuing},
-        {group, blacklist}
+        {group, blacklist},
+        {group, others}
     ].
 
 -spec groups() -> [{group_name(), list(), [test_case_name()]}].
@@ -92,6 +94,9 @@ groups() ->
         {blacklist, [], [
             jti_and_authority_blacklist_test,
             empty_blacklist_test
+        ]},
+        {others, [], [
+            simple_create_test
         ]}
     ].
 
@@ -239,6 +244,35 @@ init_per_group(issuing = Name, C) ->
         }}
     ]) ++
         [{groupname, Name} | C];
+init_per_group(others = Name, C) ->
+    start_keeper([
+        {jwt, #{
+            keyset => #{
+                test => #{
+                    source => {pem_file, get_filename("keys/local/private.pem", C)},
+                    authority => issuing_authority
+                }
+            }
+        }},
+        {issuing, #{
+            authority => issuing_authority
+        }},
+        {service_clients, #{
+            storage => #{
+                path => <<"/v1/stateproc/storage">>,
+                url => <<"http://machinegun:8022/v1/automaton">>
+            }
+        }},
+        {authorities, #{
+            issuing_authority => #{
+                id => ?TK_AUTHORITY_CAPI,
+                signer => test,
+                authdata_sources => [
+                    {storage, machinegun}
+                ]
+            }
+        }}
+    ]) ++ [{groupname, Name} | C];
 init_per_group(Name, C) ->
     [{groupname, Name} | C].
 
@@ -532,7 +566,45 @@ empty_blacklist_test(C) ->
     #token_keeper_AuthDataNotFound{} =
         (catch call_get_by_token(Token1, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
-%%
+%%-------------------------------------
+%% others test group
+
+-spec simple_create_test(config()) -> ok.
+simple_create_test(C) ->
+    Client = mk_client(C),
+    ID = unique_id(),
+    Metadata = #{<<"my">> => <<"metadata">>},
+
+    JTI = unique_id(),
+    Context = #bctx_ContextFragment{
+        type = v1_thrift_binary,
+        content = create_bouncer_context(JTI)
+    },
+
+    %% create
+    #token_keeper_AuthData{
+        id = ID,
+        token = _Token,
+        status = active,
+        context = _Context,
+        metadata = Metadata,
+        authority = ?TK_AUTHORITY_CAPI
+    } = call_create(ID, Context, Metadata, Client),
+
+    %% revoke
+    call_revoke(ID, Client),
+
+    %% get
+    #token_keeper_AuthData{
+        id = ID,
+        token = _Token,
+        status = revoked,
+        context = _Context,
+        metadata = Metadata,
+        authority = ?TK_AUTHORITY_CAPI
+    } = call_get(ID, Client).
+
+%% internal
 
 mk_client(C) ->
     WoodyCtx = woody_context:new(genlib:to_binary(?CONFIG(testcase, C))),
@@ -544,6 +616,15 @@ call_get_by_token(Token, TokenSourceContext, Client) ->
 
 call_create_ephemeral(ContextFragment, Metadata, Client) ->
     call_token_keeper('CreateEphemeral', {ContextFragment, Metadata}, Client).
+
+call_get(ID, Client) ->
+    call_token_keeper('Get', {ID}, Client).
+
+call_revoke(ID, Client) ->
+    call_token_keeper('Revoke', {ID}, Client).
+
+call_create(ID, ContextFragment, Metadata, Client) ->
+    call_token_keeper('Create', {ID, ContextFragment, Metadata}, Client).
 
 call_token_keeper(Operation, Args, Client) ->
     call(token_keeper, Operation, Args, Client).

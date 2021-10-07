@@ -32,6 +32,7 @@
 -type automaton() :: #{
     % machinegun's automaton url
     url := binary(),
+    path := binary(),
     event_handler := event_handler(),
     schema => schema(),
     transport_opts => woody_client_thrift_http_transport:transport_options()
@@ -109,7 +110,7 @@ process_call(revoke, _Machine, _, _) ->
 
 backend(_Opts) ->
     case genlib_app:env(token_keeper, service_clients, #{}) of
-        #{automaton := Automaton} ->
+        #{storage := Automaton} ->
             machinery_mg_backend:new(woody_context:new(), #{
                 client => get_woody_client(Automaton),
                 schema => machinery_mg_schema_generic
