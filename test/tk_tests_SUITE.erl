@@ -356,7 +356,6 @@ start_keeper(Env) ->
     Apps = genlib_app:start_application_with(
         token_keeper,
         [
-            {ip, IP},
             {port, Port},
             {services, #{
                 token_keeper => #{

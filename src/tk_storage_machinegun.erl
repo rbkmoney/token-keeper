@@ -123,7 +123,7 @@ backend(_Opts) ->
 get_woody_client(#{url := Url} = Automaton) ->
     genlib_map:compact(#{
         url => Url,
-        event_handler => genlib_app:env(token_keeper, woody_event_handlers, scoper_woody_event_handler),
+        event_handler => genlib_app:env(token_keeper, woody_event_handlers, [scoper_woody_event_handler]),
         transport_opts => maps:get(transport_opts, Automaton, undefined)
     }).
 
