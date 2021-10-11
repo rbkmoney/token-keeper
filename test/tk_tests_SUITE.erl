@@ -31,6 +31,8 @@
 -export([jti_and_authority_blacklist_test/1]).
 -export([empty_blacklist_test/1]).
 -export([simple_create_test/1]).
+-export([revoke_notexisted_test/1]).
+-export([get_notexisted_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -96,7 +98,9 @@ groups() ->
             empty_blacklist_test
         ]},
         {others, [], [
-            simple_create_test
+            simple_create_test,
+            revoke_notexisted_test,
+            get_notexisted_test
         ]}
     ].
 
@@ -599,6 +603,14 @@ simple_create_test(C) ->
         context = _Context,
         metadata = Metadata
     } = call_get(ID, Client).
+
+-spec revoke_notexisted_test(config()) -> ok.
+revoke_notexisted_test(C) ->
+    #token_keeper_AuthDataNotFound{} = (catch call_revoke(unique_id(), mk_client(C))).
+
+-spec get_notexisted_test(config()) -> ok.
+get_notexisted_test(C) ->
+    #token_keeper_AuthDataNotFound{} = (catch call_get(unique_id(), mk_client(C))).
 
 %% internal
 
