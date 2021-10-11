@@ -128,9 +128,9 @@ get_routes(EventHandlers) ->
     Check = enable_health_logging(genlib_app:env(?MODULE, health_check, #{})),
     [erl_health_handle:get_route(Check) | machinery_mg_backend:get_routes(Handlers, RouteOpts)].
 
-create_handler({Name, Opts}) ->
-    {Name, Opts#{
-        path => maps:get(path, Opts, <<"/v1/stateproc/", (atom_to_binary(Name))/binary>>),
+create_handler({storage, Opts}) ->
+    {tk_storage:get_storage_handler(machinegun), Opts#{
+        path => maps:get(path, Opts, <<"/v1/stateproc/storage">>),
         backend_config => #{
             %% TODO: ??? see tk_storage_machinegun:backend
             schema => machinery_mg_schema_generic

@@ -22,7 +22,7 @@
 
 %%
 
--spec handle_function(woody:func(), woody:args(), woody_context:ctx(), opts()) -> {ok, woody:result()}.
+-spec handle_function(woody:func(), woody:args(), woody_context:ctx(), opts()) -> {ok, woody:result()} | no_return().
 handle_function(Op, Args, WoodyCtx, Opts) ->
     State = make_state(WoodyCtx, Opts),
     handle_function_(Op, Args, State).
@@ -34,19 +34,16 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     %% предполагается, что AuthDataID == jwt-клейму “JTI”). По умолчанию
     %% status токена - active; authority - id выписывающей authority.
     _ = handle_beat(Op, started, State),
-    {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
+    {_, Authority} = get_autority_config(get_issuing_authority()),
     AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
-    {ok, Token} =
+    EncodedAuthData =
         case tk_authority:store(AuthData, Authority) of
             ok ->
-                Claims = tk_token_claim_utils:encode_authdata(AuthData),
-                tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf));
+                encode_auth_data(AuthData);
             {error, Reason} ->
                 _ = handle_beat(Op, {failed, Reason}, State),
                 throw({misconfiguration, Reason})
         end,
-
-    EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
     _ = handle_beat(Op, succeeded, State),
     {ok, EncodedAuthData};
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
@@ -107,7 +104,7 @@ handle_function_('Revoke' = Op, {ID}, State) ->
     case tk_authority:revoke(ID, Authority) of
         ok ->
             _ = handle_beat(Op, succeeded, State),
-            ok;
+            {ok, ok};
         {error, notfound} ->
             _ = handle_beat(Op, {failed, notfound}, State),
             woody_error:raise(business, #token_keeper_AuthDataNotFound{})
@@ -155,12 +152,12 @@ make_state(WoodyCtx, Opts) ->
 encode_auth_data(AuthData) ->
     #token_keeper_AuthData{
         id = maps:get(id, AuthData, undefined),
-        token = maps:get(token, AuthData),
+        token = maps:get(token, AuthData, undefined),
         %% Assume active?
         status = maps:get(status, AuthData),
         context = maps:get(context, AuthData),
         metadata = maps:get(metadata, AuthData, #{}),
-        authority = maps:get(authority, AuthData)
+        authority = maps:get(authority, AuthData, undefined)
     }.
 
 decode_source_context(TokenSourceContext) ->

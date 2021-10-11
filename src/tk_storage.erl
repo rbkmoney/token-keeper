@@ -3,6 +3,7 @@
 -export([get/2]).
 -export([store/2]).
 -export([revoke/2]).
+-export([get_storage_handler/1]).
 
 %%
 
@@ -46,15 +47,16 @@ store(AuthData, StorageOpts) ->
 revoke(DataID, StorageOpts) ->
     call(DataID, StorageOpts, revoke).
 
+-spec get_storage_handler(atom()) -> machinery:logic_handler(_).
+get_storage_handler(machinegun) ->
+    tk_storage_machinegun.
+
 %%
 
 call(Operand, StorageOpts, Func) ->
     {Storage, Opts} = get_storage_opts(StorageOpts),
     Handler = get_storage_handler(Storage),
     Handler:Func(Operand, Opts).
-
-get_storage_handler(machinegun) ->
-    tk_storage_machinegun.
 
 get_storage_opts({_Storage, _Opts} = StorageOpts) ->
     StorageOpts;

@@ -583,7 +583,6 @@ simple_create_test(C) ->
     %% create
     #token_keeper_AuthData{
         id = ID,
-        token = _Token,
         status = active,
         context = _Context,
         metadata = Metadata,
@@ -596,11 +595,9 @@ simple_create_test(C) ->
     %% get
     #token_keeper_AuthData{
         id = ID,
-        token = _Token,
         status = revoked,
         context = _Context,
-        metadata = Metadata,
-        authority = ?TK_AUTHORITY_CAPI
+        metadata = Metadata
     } = call_get(ID, Client).
 
 %% internal

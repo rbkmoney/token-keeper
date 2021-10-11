@@ -132,8 +132,8 @@ collapse(#{history := History}) ->
 
 collapse_history([], AuthData) when AuthData =/= undefined ->
     {ok, AuthData};
-collapse_history([{ID, _, {created, AuthData}} | Rest], undefined) ->
-    #tk_events_AuthDataCreated{context = Ctx, status = Status, metadata = Meta} = AuthData,
+collapse_history([{_, _, {created, AuthData}} | Rest], undefined) ->
+    #tk_events_AuthDataCreated{id = ID, context = Ctx, status = Status, metadata = Meta} = AuthData,
     collapse_history(Rest, #{id => ID, context => Ctx, status => Status, metadata => Meta});
 collapse_history([{_, _, {status_changed, StatusChanged}} | Rest], AuthData) when AuthData =/= undefined ->
     #tk_events_AuthDataStatusChanged{status = Status} = StatusChanged,
