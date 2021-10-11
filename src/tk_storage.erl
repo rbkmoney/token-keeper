@@ -39,7 +39,7 @@
 get(DataID, StorageOpts) ->
     call(DataID, StorageOpts, get).
 
--spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
+-spec store(storable_authdata(), storage_opts()) -> ok | {error, exists}.
 store(AuthData, StorageOpts) ->
     call(AuthData, StorageOpts, store).
 

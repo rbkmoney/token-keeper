@@ -34,18 +34,18 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     %% предполагается, что AuthDataID == jwt-клейму “JTI”). По умолчанию
     %% status токена - active; authority - id выписывающей authority.
     _ = handle_beat(Op, started, State),
-    {_, Authority} = get_autority_config(get_issuing_authority()),
+    {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
     AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
-    EncodedAuthData =
-        case tk_authority:store(AuthData, Authority) of
-            ok ->
-                encode_auth_data(AuthData);
-            {error, Reason} ->
-                _ = handle_beat(Op, {failed, Reason}, State),
-                throw({misconfiguration, Reason})
-        end,
-    _ = handle_beat(Op, succeeded, State),
-    {ok, EncodedAuthData};
+    case tk_authority:store(AuthData, Authority) of
+        ok ->
+            {ok, Token} = tk_token_jwt:issue(ID, #{}, get_signer(AuthorityConf)),
+            EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
+            _ = handle_beat(Op, succeeded, State),
+            {ok, EncodedAuthData};
+        {error, exists} ->
+            _ = handle_beat(Op, {failed, exists}, State),
+            woody_error:raise(business, #token_keeper_AuthDataAlreadyExists{})
+    end;
 handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
     AuthorityConf = get_autority_config(get_issuing_authority()),
@@ -83,13 +83,11 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
 handle_function_('Get' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
+    {_, Authority} = get_autority_config(get_issuing_authority()),
 
     case tk_authority:get_authdata_by_id(ID, Authority) of
         {ok, AuthData} ->
-            Claims = tk_token_claim_utils:encode_authdata(AuthData),
-            {ok, Token} = tk_token_jwt:issue(ID, Claims, get_signer(AuthorityConf)),
-            EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
+            EncodedAuthData = encode_auth_data(AuthData),
             _ = handle_beat(Op, succeeded, State),
             {ok, EncodedAuthData};
         {error, Reason} ->

@@ -73,7 +73,7 @@
   0},
  {<<"token_keeper_proto">>,
   {git,"https://github.com/rbkmoney/token-keeper-proto.git",
-       {ref,"cdbbd99ea781bd76dcddcb43aa34fab8af1d75c8"}},
+       {ref,"c7f48d24a561c95b8135d3b07fd2ff55a62eb308"}},
   0},
  {<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.7.0">>},2},
  {<<"woody">>,

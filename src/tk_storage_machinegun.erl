@@ -59,7 +59,7 @@ get(ID, Opts) ->
 
 %% Start a new machine, post event, make claims with id
 %% Consider ways to generate authdata ids?
--spec store(storable_authdata(), storage_opts()) -> ok | {error, _Reason}.
+-spec store(storable_authdata(), storage_opts()) -> ok | {error, exists}.
 store(AuthData, Opts) ->
     DataID = tk_authority:get_authdata_id(AuthData),
     machinery:start(?NS, DataID, {store, AuthData}, backend(Opts)).
