@@ -6,7 +6,7 @@
 
 %% API functions
 
--export([get_authdata/2]).
+-export([get_authdata/3]).
 
 %% API Types
 
@@ -19,8 +19,14 @@
     metadata => tk_authority:metadata()
 }.
 
+-type source_opts() ::
+    tk_authdata_source_extractor:source_opts()
+    | tk_authdata_source_claim:source_opts()
+    | tk_authdata_source_storage:source_opts().
+
 -export_type([authdata_source/0]).
 -export_type([sourced_authdata/0]).
+-export_type([source_opts/0]).
 
 %% Internal types
 
@@ -30,25 +36,20 @@
 
 -type maybe_opts(Source, Opts) :: Source | {Source, Opts}.
 
--type source_opts() ::
-    tk_authdata_source_extractor:source_opts()
-    | tk_authdata_source_claim:source_opts()
-    | tk_authdata_source_storage:source_opts().
-
 %% API functions
 
--spec get_authdata(authdata_source(), tk_token_jwt:t()) -> sourced_authdata() | undefined.
-get_authdata(AuthDataSource, Token) ->
-    {Source, Opts} = get_source_opts(AuthDataSource),
+-spec get_authdata(authdata_source(), tk_token_jwt:t(), source_opts()) -> sourced_authdata() | undefined.
+get_authdata(AuthDataSource, Token, GOpts) ->
+    {Source, Opts} = get_source_opts(AuthDataSource, GOpts),
     Hander = get_source_handler(Source),
     Hander:get_authdata(Token, Opts).
 
 %%
 
-get_source_opts({_Source, _Opts} = SourceOpts) ->
-    SourceOpts;
-get_source_opts(Source) when is_atom(Source) ->
-    {Source, #{}}.
+get_source_opts({Source, Opts}, GOpts) ->
+    {Source, maps:merge(GOpts, Opts)};
+get_source_opts(Source, GOpts) when is_atom(Source) ->
+    {Source, GOpts}.
 
 get_source_handler(storage) ->
     tk_authdata_source_storage;

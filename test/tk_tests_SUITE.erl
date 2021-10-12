@@ -276,7 +276,7 @@ init_per_group(others = Name, C) ->
                 id => ?TK_AUTHORITY_CAPI,
                 signer => test,
                 authdata_sources => [
-                    {storage, machinegun}
+                    {storage, #{backend => machinegun}}
                 ]
             }
         }}

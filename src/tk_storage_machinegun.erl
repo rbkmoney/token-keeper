@@ -108,10 +108,10 @@ process_call(revoke, _Machine, _, _) ->
 %%-------------------------------------
 %% internal
 
-backend(_Opts) ->
+backend(#{woody_ctx := WC}) ->
     case genlib_app:env(token_keeper, service_clients, #{}) of
         #{storage := Automaton} ->
-            machinery_mg_backend:new(woody_context:new(), #{
+            machinery_mg_backend:new(WC, #{
                 client => get_woody_client(Automaton),
                 schema => machinery_mg_schema_generic
             });

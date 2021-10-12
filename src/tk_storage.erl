@@ -13,7 +13,7 @@
 
 %%
 
--type storage_opts() :: {storage(), opts()} | storage().
+-type storage_opts() :: opts().
 
 -type storable_authdata() :: #{
     id => tk_authority:authdata_id(),
@@ -47,20 +47,24 @@ store(AuthData, StorageOpts) ->
 revoke(DataID, StorageOpts) ->
     call(DataID, StorageOpts, revoke).
 
--spec get_storage_handler(atom()) -> machinery:logic_handler(_).
+-spec get_storage_handler(storage()) -> machinery:logic_handler(_).
 get_storage_handler(machinegun) ->
     tk_storage_machinegun.
 
 %%
 
 call(Operand, StorageOpts, Func) ->
-    {Storage, Opts} = get_storage_opts(StorageOpts),
-    Handler = get_storage_handler(Storage),
-    Handler:Func(Operand, Opts).
+    case get_storage_opts(StorageOpts) of
+        {error, _} = Err ->
+            Err;
+        {Storage, Opts} ->
+            Handler = get_storage_handler(Storage),
+            Handler:Func(Operand, Opts)
+    end.
 
-get_storage_opts({_Storage, _Opts} = StorageOpts) ->
-    StorageOpts;
-get_storage_opts(Storage) when is_atom(Storage) ->
-    {Storage, #{}};
+get_storage_opts(#{backend := Storage} = StorageOpts) when is_atom(Storage) ->
+    {Storage, StorageOpts};
+get_storage_opts(#{} = StorageOpts) ->
+    {machinegun, StorageOpts};
 get_storage_opts(StorageOpts) ->
     {error, {misconfiguration, {no_storage_options, StorageOpts}}}.
