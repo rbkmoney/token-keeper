@@ -656,7 +656,20 @@ revoke_twice_test(C) ->
     } = call_create(ID, Context, Metadata, Client),
 
     ok = call_revoke(ID, Client),
-    ok = call_revoke(ID, Client).
+    #token_keeper_AuthData{
+        id = ID,
+        status = revoked,
+        context = _Context,
+        metadata = Metadata
+    } = call_get(ID, Client),
+
+    ok = call_revoke(ID, Client),
+    #token_keeper_AuthData{
+        id = ID,
+        status = revoked,
+        context = _Context,
+        metadata = Metadata
+    } = call_get(ID, Client).
 
 -spec revoke_notexisted_test(config()) -> ok.
 revoke_notexisted_test(C) ->

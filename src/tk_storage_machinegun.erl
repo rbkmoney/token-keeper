@@ -82,10 +82,10 @@ init({store, AuthData}, _Machine, _, _) ->
     #{
         events => [
             {created, #tk_events_AuthDataCreated{
-                id = tk_authority:get_authdata_id(AuthData),
-                status = tk_authority:get_value(status, AuthData),
-                context = tk_authority:get_value(context, AuthData),
-                metadata = tk_authority:get_value(metadata, AuthData)
+                id = maps:get(id, AuthData),
+                status = maps:get(status, AuthData),
+                context = maps:get(context, AuthData),
+                metadata = maps:get(metadata, AuthData)
             }}
         ]
     }.
@@ -128,10 +128,7 @@ get_woody_client(#{url := Url} = Automaton) ->
     }).
 
 collapse(#{history := History}) ->
-    case collapse_history(History, undefined) of
-        {ok, _AuthData} = Res -> Res;
-        {error, wrong_history} -> {error, {wrong_history, History}}
-    end.
+    collapse_history(History, undefined).
 
 collapse_history([], AuthData) when AuthData =/= undefined ->
     {ok, AuthData};
@@ -140,6 +137,4 @@ collapse_history([{_, _, {created, AuthData}} | Rest], undefined) ->
     collapse_history(Rest, #{id => ID, context => Ctx, status => Status, metadata => Meta});
 collapse_history([{_, _, {status_changed, StatusChanged}} | Rest], AuthData) when AuthData =/= undefined ->
     #tk_events_AuthDataStatusChanged{status = Status} = StatusChanged,
-    collapse_history(Rest, AuthData#{status => Status});
-collapse_history(_, _) ->
-    {error, wrong_history}.
+    collapse_history(Rest, AuthData#{status => Status}).

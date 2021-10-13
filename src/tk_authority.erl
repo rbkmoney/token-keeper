@@ -13,7 +13,6 @@
 -export([get_authdata_by_id/3]).
 -export([store/3]).
 -export([revoke/3]).
--export([get_value/2]).
 
 %% API Types
 
@@ -39,9 +38,6 @@
 -type status() :: active | revoked.
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
 -type metadata() :: #{binary() => binary()}.
-
--type authdata_fields() :: status | context | authority | metadata.
--type authdata_values() :: status() | encoded_context_fragment() | autority_id() | metadata().
 
 -type source_opts() :: tk_authdata_source:source_opts().
 
@@ -101,10 +97,6 @@ store(AuthData, Authority, GOpts) ->
 revoke(ID, Authority, GOpts) ->
     do_storage_call(ID, Authority, fun tk_storage:revoke/2, GOpts).
 
--spec get_value(authdata_fields(), authdata()) -> authdata_values().
-get_value(Field, AuthData) ->
-    maps:get(Field, AuthData).
-
 %%-------------------------------------
 %% private functions
 
@@ -138,9 +130,7 @@ add_id(AuthData, ID) ->
     AuthData#{id => ID}.
 
 add_authority_id(AuthData, Authority) when is_map(Authority) ->
-    AuthData#{authority => maps:get(id, Authority)};
-add_authority_id(AuthData, Authority) when is_binary(Authority) ->
-    AuthData#{authority => Authority}.
+    AuthData#{authority => maps:get(id, Authority)}.
 
 get_storage_opts(Authority) ->
     lists:keyfind(storage, 1, get_auth_data_sources(Authority)).
