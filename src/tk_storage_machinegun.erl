@@ -128,7 +128,10 @@ get_woody_client(#{url := Url} = Automaton) ->
     }).
 
 collapse(#{history := History}) ->
-    collapse_history(History, undefined).
+    case collapse_history(History, undefined) of
+        {ok, _AuthData} = Res -> Res;
+        {error, wrong_history} -> {error, {wrong_history, History}}
+    end.
 
 collapse_history([], AuthData) when AuthData =/= undefined ->
     {ok, AuthData};
