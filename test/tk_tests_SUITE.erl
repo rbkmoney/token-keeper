@@ -35,6 +35,7 @@
 -export([revoke_twice_test/1]).
 -export([revoke_notexisted_test/1]).
 -export([get_notexisted_test/1]).
+-export([getbytoken_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -104,7 +105,8 @@ groups() ->
             create_twice_test,
             revoke_twice_test,
             revoke_notexisted_test,
-            get_notexisted_test
+            get_notexisted_test,
+            getbytoken_test
         ]}
     ].
 
@@ -678,6 +680,39 @@ revoke_notexisted_test(C) ->
 -spec get_notexisted_test(config()) -> ok.
 get_notexisted_test(C) ->
     #token_keeper_AuthDataNotFound{} = (catch call_get(unique_id(), mk_client(C))).
+
+-spec getbytoken_test(config()) -> ok.
+getbytoken_test(C) ->
+    Client = mk_client(C),
+    ID = unique_id(),
+    JTI = ID,
+
+    Metadata = #{<<"my">> => <<"metadata">>},
+
+    Context = #bctx_ContextFragment{
+        type = v1_thrift_binary,
+        content = create_bouncer_context(JTI)
+    },
+
+    %% create
+    #token_keeper_AuthData{
+        id = ID,
+        status = active,
+        context = _Context,
+        metadata = Metadata,
+        authority = ?TK_AUTHORITY_CAPI
+    } = call_create(ID, Context, Metadata, Client),
+
+    %% getbytoken
+    {ok, Token} = issue_token(JTI, #{<<"sub">> => <<"TEST">>}, unlimited),
+    #token_keeper_AuthData{
+        id = ID,
+        token = Token,
+        status = active,
+        context = Context,
+        metadata = Metadata,
+        authority = ?TK_AUTHORITY_CAPI
+    } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client).
 
 %% internal
 
