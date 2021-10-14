@@ -269,7 +269,6 @@ init_per_group(others = Name, C) ->
         }},
         {service_clients, #{
             storage => #{
-                path => <<"/v1/stateproc/storage">>,
                 url => <<"http://machinegun:8022/v1/automaton">>
             }
         }},

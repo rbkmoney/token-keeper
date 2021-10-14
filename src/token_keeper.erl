@@ -130,7 +130,7 @@ get_routes(EventHandlers) ->
 
 create_handler({storage, Opts}) ->
     {tk_storage:get_storage_handler(machinegun), Opts#{
-        path => maps:get(path, Opts, <<"/v1/stateproc/storage">>),
+        path => <<"/v1/stateproc/storage">>,
         backend_config => #{
             %% TODO: ??? see tk_storage_machinegun:backend
             schema => machinery_mg_schema_generic
