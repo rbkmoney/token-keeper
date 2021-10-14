@@ -2,7 +2,7 @@
 
 %% Behaviour
 
--callback get_authdata(tk_token_jwt:t(), source_opts()) -> sourced_authdata() | undefined.
+-callback get_authdata(tk_token_jwt:t(), source_opts(), map()) -> sourced_authdata() | undefined.
 
 %% API functions
 
@@ -38,18 +38,18 @@
 
 %% API functions
 
--spec get_authdata(authdata_source(), tk_token_jwt:t(), source_opts()) -> sourced_authdata() | undefined.
-get_authdata(AuthDataSource, Token, GOpts) ->
-    {Source, Opts} = get_source_opts(AuthDataSource, GOpts),
+-spec get_authdata(authdata_source(), tk_token_jwt:t(), map()) -> sourced_authdata() | undefined.
+get_authdata(AuthDataSource, Token, Ctx) ->
+    {Source, Opts} = get_source_opts(AuthDataSource),
     Hander = get_source_handler(Source),
-    Hander:get_authdata(Token, Opts).
+    Hander:get_authdata(Token, Opts, Ctx).
 
 %%
 
-get_source_opts({Source, Opts}, GOpts) ->
-    {Source, maps:merge(GOpts, Opts)};
-get_source_opts(Source, GOpts) when is_atom(Source) ->
-    {Source, GOpts}.
+get_source_opts({_Source, _Opts} = StorageOpts) ->
+    StorageOpts;
+get_source_opts(Source) when is_atom(Source) ->
+    {Source, #{}}.
 
 get_source_handler(storage) ->
     tk_authdata_source_storage;

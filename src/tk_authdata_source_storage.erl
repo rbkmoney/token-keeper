@@ -3,7 +3,7 @@
 
 %% Behaviour
 
--export([get_authdata/2]).
+-export([get_authdata/3]).
 
 %%
 
@@ -15,9 +15,9 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
-get_authdata(Token, StorageOpts) ->
-    case tk_storage:get(get_authdata_id(Token), StorageOpts) of
+-spec get_authdata(tk_token_jwt:t(), source_opts(), map()) -> stored_authdata() | undefined.
+get_authdata(Token, StorageOpts, Ctx) ->
+    case tk_storage:get(get_authdata_id(Token), StorageOpts, Ctx) of
         {ok, AuthData} ->
             AuthData;
         {error, Reason} ->

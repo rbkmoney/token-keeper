@@ -36,7 +36,7 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     _ = handle_beat(Op, started, State),
     {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
     AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
-    case tk_authority:store(AuthData, Authority, build_global_options(State)) of
+    case tk_authority:store(AuthData, Authority, build_context(State)) of
         ok ->
             {ok, Token} = tk_token_jwt:issue(ID, #{}, get_signer(AuthorityConf)),
             EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
@@ -64,7 +64,7 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
         {ok, TokenInfo} ->
             State1 = save_pulse_metadata(#{token => TokenInfo}, State),
             {_, Authority} = get_autority_config(get_token_authority(TokenInfo)),
-            case tk_authority:get_authdata_by_token(TokenInfo, Authority, build_global_options(State)) of
+            case tk_authority:get_authdata_by_token(TokenInfo, Authority, build_context(State)) of
                 {ok, AuthDataPrototype} ->
                     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
                     _ = handle_beat(Op, succeeded, State1),
@@ -85,7 +85,7 @@ handle_function_('Get' = Op, {ID}, State) ->
 
     {_, Authority} = get_autority_config(get_issuing_authority()),
 
-    case tk_authority:get_authdata_by_id(ID, Authority, build_global_options(State)) of
+    case tk_authority:get_authdata_by_id(ID, Authority, build_context(State)) of
         {ok, AuthData} ->
             EncodedAuthData = encode_auth_data(AuthData),
             _ = handle_beat(Op, succeeded, State),
@@ -99,7 +99,7 @@ handle_function_('Revoke' = Op, {ID}, State) ->
 
     {_, Authority} = get_autority_config(get_issuing_authority()),
 
-    case tk_authority:revoke(ID, Authority, build_global_options(State)) of
+    case tk_authority:revoke(ID, Authority, build_context(State)) of
         ok ->
             _ = handle_beat(Op, succeeded, State),
             {ok, ok};
@@ -140,7 +140,7 @@ unique_id() ->
 
 %%
 
-build_global_options(#state{woody_context = WC}) ->
+build_context(#state{woody_context = WC}) ->
     #{woody_ctx => WC}.
 
 make_state(WoodyCtx, Opts) ->

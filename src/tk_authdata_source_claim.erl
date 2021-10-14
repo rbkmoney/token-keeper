@@ -3,7 +3,7 @@
 
 %% Behaviour
 
--export([get_authdata/2]).
+-export([get_authdata/3]).
 
 %%
 
@@ -15,8 +15,8 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts()) -> stored_authdata() | undefined.
-get_authdata(Token, Opts) ->
+-spec get_authdata(tk_token_jwt:t(), source_opts(), map()) -> stored_authdata() | undefined.
+get_authdata(Token, Opts, _Ctx) ->
     Claims = tk_token_jwt:get_claims(Token),
     case tk_token_claim_utils:decode_authdata(Claims, Opts) of
         {ok, AuthData} ->

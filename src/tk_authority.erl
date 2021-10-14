@@ -39,8 +39,6 @@
 -type encoded_context_fragment() :: tk_context_thrift:'ContextFragment'().
 -type metadata() :: #{binary() => binary()}.
 
--type source_opts() :: tk_authdata_source:source_opts().
-
 -export_type([authority/0]).
 
 -export_type([authdata/0]).
@@ -74,28 +72,28 @@ create_authdata(ID, ContextFragment, Metadata, Authority) ->
     },
     add_authority_id(add_id(AuthData, ID), Authority).
 
--spec get_authdata_by_token(tk_token_jwt:t(), authority(), source_opts()) ->
+-spec get_authdata_by_token(tk_token_jwt:t(), authority(), map()) ->
     {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
-get_authdata_by_token(Token, Authority, GOpts) ->
+get_authdata_by_token(Token, Authority, Ctx) ->
     AuthDataSources = get_auth_data_sources(Authority),
-    case get_authdata_from_sources(AuthDataSources, Token, GOpts) of
+    case get_authdata_from_sources(AuthDataSources, Token, Ctx) of
         #{} = AuthData ->
             {ok, maybe_add_authority_id(AuthData, Authority)};
         undefined ->
             {error, {authdata_not_found, AuthDataSources}}
     end.
 
--spec get_authdata_by_id(authdata_id(), authority(), source_opts()) -> {ok, authdata()} | {error, _Reason}.
-get_authdata_by_id(ID, Authority, GOpts) ->
-    do_storage_call(ID, Authority, fun tk_storage:get/2, GOpts).
+-spec get_authdata_by_id(authdata_id(), authority(), map()) -> {ok, authdata()} | {error, _Reason}.
+get_authdata_by_id(ID, Authority, Ctx) ->
+    do_storage_call(ID, Authority, fun tk_storage:get/3, Ctx).
 
--spec store(authdata(), authority(), source_opts()) -> ok | {error, _Reason}.
-store(AuthData, Authority, GOpts) ->
-    do_storage_call(AuthData, Authority, fun tk_storage:store/2, GOpts).
+-spec store(authdata(), authority(), map()) -> ok | {error, _Reason}.
+store(AuthData, Authority, Ctx) ->
+    do_storage_call(AuthData, Authority, fun tk_storage:store/3, Ctx).
 
--spec revoke(authdata_id(), authority(), source_opts()) -> ok | {error, notfound}.
-revoke(ID, Authority, GOpts) ->
-    do_storage_call(ID, Authority, fun tk_storage:revoke/2, GOpts).
+-spec revoke(authdata_id(), authority(), map()) -> ok | {error, notfound}.
+revoke(ID, Authority, Ctx) ->
+    do_storage_call(ID, Authority, fun tk_storage:revoke/3, Ctx).
 
 %%-------------------------------------
 %% private functions
@@ -109,12 +107,12 @@ get_auth_data_sources(Authority) ->
             throw({misconfiguration, {no_authdata_sources, Authority}})
     end.
 
-get_authdata_from_sources([], _Token, _GOpts) ->
+get_authdata_from_sources([], _Token, _Ctx) ->
     undefined;
-get_authdata_from_sources([SourceOpts | Rest], Token, GOpts) ->
-    case tk_authdata_source:get_authdata(SourceOpts, Token, GOpts) of
+get_authdata_from_sources([SourceOpts | Rest], Token, Ctx) ->
+    case tk_authdata_source:get_authdata(SourceOpts, Token, Ctx) of
         undefined ->
-            get_authdata_from_sources(Rest, Token, GOpts);
+            get_authdata_from_sources(Rest, Token, Ctx);
         AuthData ->
             AuthData
     end.
@@ -135,12 +133,12 @@ add_authority_id(AuthData, Authority) when is_map(Authority) ->
 get_storage_opts(Authority) ->
     lists:keyfind(storage, 1, get_auth_data_sources(Authority)).
 
--spec do_storage_call(authdata() | authdata_id(), authority(), fun(), source_opts()) ->
+-spec do_storage_call(authdata() | authdata_id(), authority(), fun(), map()) ->
     ok | {ok, authdata()} | {error, _Reason}.
-do_storage_call(Operand, Authority, Func, GOpts) ->
+do_storage_call(Operand, Authority, Func, Ctx) ->
     case get_storage_opts(Authority) of
         {_Source, Opts} ->
-            Func(Operand, maps:merge(GOpts, Opts));
+            Func(Operand, Opts, Ctx);
         false ->
             {error, {misconfiguration, {no_storage_options, Authority}}}
     end.

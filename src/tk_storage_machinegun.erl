@@ -6,9 +6,9 @@
 -behaviour(machinery).
 
 %% tk_storage interface
--export([get/2]).
--export([store/2]).
--export([revoke/2]).
+-export([get/3]).
+-export([store/3]).
+-export([revoke/3]).
 
 %% machinery interface
 -export([init/4]).
@@ -16,7 +16,7 @@
 -export([process_timeout/3]).
 -export([process_call/4]).
 
--type storage_opts() :: #{woody_ctx => woody_context:ctx()}.
+-type storage_opts() :: #{}.
 -export_type([storage_opts/0]).
 
 -define(NS, tk_authdata).
@@ -48,9 +48,9 @@
 %% tk_storage behaviour implementation
 
 %% Collapse history and return the auth data?
--spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
-get(ID, Opts) ->
-    case machinery:get(?NS, ID, backend(Opts)) of
+-spec get(authdata_id(), storage_opts(), map()) -> {ok, storable_authdata()} | {error, _Reason}.
+get(ID, _Opts, Ctx) ->
+    case machinery:get(?NS, ID, backend(Ctx)) of
         {ok, Machine} ->
             collapse(Machine);
         {error, _} = Err ->
@@ -59,15 +59,15 @@ get(ID, Opts) ->
 
 %% Start a new machine, post event, make claims with id
 %% Consider ways to generate authdata ids?
--spec store(storable_authdata(), storage_opts()) -> ok | {error, exists}.
-store(AuthData, Opts) ->
+-spec store(storable_authdata(), storage_opts(), map()) -> ok | {error, exists}.
+store(AuthData, _Opts, Ctx) ->
     DataID = tk_authority:get_authdata_id(AuthData),
-    machinery:start(?NS, DataID, {store, AuthData}, backend(Opts)).
+    machinery:start(?NS, DataID, {store, AuthData}, backend(Ctx)).
 
 %% Post a revocation event?
--spec revoke(authdata_id(), storage_opts()) -> ok | {error, notfound}.
-revoke(ID, Opts) ->
-    case machinery:call(?NS, ID, revoke, backend(Opts)) of
+-spec revoke(authdata_id(), storage_opts(), map()) -> ok | {error, notfound}.
+revoke(ID, _Opts, Ctx) ->
+    case machinery:call(?NS, ID, revoke, backend(Ctx)) of
         {ok, _Reply} ->
             ok;
         {error, notfound} = Err ->

@@ -1,15 +1,15 @@
 -module(tk_storage).
 
--export([get/2]).
--export([store/2]).
--export([revoke/2]).
+-export([get/3]).
+-export([store/3]).
+-export([revoke/3]).
 -export([get_storage_handler/1]).
 
 %%
 
--callback get(authdata_id(), opts()) -> {ok, tk_storage:storable_authdata()} | {error, _Reason}.
--callback store(tk_storage:storable_authdata(), opts()) -> ok | {error, _Reason}.
--callback revoke(authdata_id(), opts()) -> ok | {error, _Reason}.
+-callback get(authdata_id(), opts(), map()) -> {ok, tk_storage:storable_authdata()} | {error, _Reason}.
+-callback store(tk_storage:storable_authdata(), opts(), map()) -> ok | {error, _Reason}.
+-callback revoke(authdata_id(), opts(), map()) -> ok | {error, _Reason}.
 
 %%
 
@@ -35,17 +35,17 @@
 
 %%
 
--spec get(authdata_id(), storage_opts()) -> {ok, storable_authdata()} | {error, _Reason}.
-get(DataID, StorageOpts) ->
-    call(DataID, StorageOpts, get).
+-spec get(authdata_id(), storage_opts(), map()) -> {ok, storable_authdata()} | {error, _Reason}.
+get(DataID, StorageOpts, Ctx) ->
+    call(DataID, StorageOpts, Ctx, get).
 
--spec store(storable_authdata(), storage_opts()) -> ok | {error, exists}.
-store(AuthData, StorageOpts) ->
-    call(AuthData, StorageOpts, store).
+-spec store(storable_authdata(), storage_opts(), map()) -> ok | {error, exists}.
+store(AuthData, StorageOpts, Ctx) ->
+    call(AuthData, StorageOpts, Ctx, store).
 
--spec revoke(authdata_id(), storage_opts()) -> ok | {error, notfound}.
-revoke(DataID, StorageOpts) ->
-    call(DataID, StorageOpts, revoke).
+-spec revoke(authdata_id(), storage_opts(), map()) -> ok | {error, notfound}.
+revoke(DataID, StorageOpts, Ctx) ->
+    call(DataID, StorageOpts, Ctx, revoke).
 
 -spec get_storage_handler(storage()) -> machinery:logic_handler(_).
 get_storage_handler(machinegun) ->
@@ -53,13 +53,13 @@ get_storage_handler(machinegun) ->
 
 %%
 
-call(Operand, StorageOpts, Func) ->
+call(Operand, StorageOpts, Ctx, Func) ->
     case get_storage_opts(StorageOpts) of
         {error, _} = Err ->
             Err;
         {Storage, Opts} ->
             Handler = get_storage_handler(Storage),
-            Handler:Func(Operand, Opts)
+            Handler:Func(Operand, Opts, Ctx)
     end.
 
 get_storage_opts(#{backend := Storage} = StorageOpts) when is_atom(Storage) ->
