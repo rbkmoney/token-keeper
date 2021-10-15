@@ -10,9 +10,6 @@
 -export([get_signer/1]).
 -export([create_authdata/4]).
 -export([get_authdata_by_token/3]).
--export([get_authdata_by_id/3]).
--export([store/3]).
--export([revoke/3]).
 
 %% API Types
 
@@ -83,18 +80,6 @@ get_authdata_by_token(Token, Authority, Ctx) ->
             {error, {authdata_not_found, AuthDataSources}}
     end.
 
--spec get_authdata_by_id(authdata_id(), authority(), map()) -> {ok, authdata()} | {error, _Reason}.
-get_authdata_by_id(ID, Authority, Ctx) ->
-    do_storage_call(ID, Authority, fun tk_storage:get/3, Ctx).
-
--spec store(authdata(), authority(), map()) -> ok | {error, _Reason}.
-store(AuthData, Authority, Ctx) ->
-    do_storage_call(AuthData, Authority, fun tk_storage:store/3, Ctx).
-
--spec revoke(authdata_id(), authority(), map()) -> ok | {error, notfound}.
-revoke(ID, Authority, Ctx) ->
-    do_storage_call(ID, Authority, fun tk_storage:revoke/3, Ctx).
-
 %%-------------------------------------
 %% private functions
 
@@ -129,16 +114,3 @@ add_id(AuthData, ID) ->
 
 add_authority_id(AuthData, Authority) when is_map(Authority) ->
     AuthData#{authority => maps:get(id, Authority)}.
-
-get_storage_opts(Authority) ->
-    lists:keyfind(storage, 1, get_auth_data_sources(Authority)).
-
--spec do_storage_call(authdata() | authdata_id(), authority(), fun(), map()) ->
-    ok | {ok, authdata()} | {error, _Reason}.
-do_storage_call(Operand, Authority, Func, Ctx) ->
-    case get_storage_opts(Authority) of
-        {_Source, Opts} ->
-            Func(Operand, Opts, Ctx);
-        false ->
-            {error, {misconfiguration, {no_storage_options, Authority}}}
-    end.

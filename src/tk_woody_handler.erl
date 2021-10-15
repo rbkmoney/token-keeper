@@ -34,9 +34,9 @@ handle_function_('Create' = Op, {ID, ContextFragment, Metadata}, State) ->
     %% предполагается, что AuthDataID == jwt-клейму “JTI”). По умолчанию
     %% status токена - active; authority - id выписывающей authority.
     _ = handle_beat(Op, started, State),
-    {_, Authority} = AuthorityConf = get_autority_config(get_issuing_authority()),
-    AuthData = tk_authority:create_authdata(ID, ContextFragment, Metadata, Authority),
-    case tk_authority:store(AuthData, Authority, build_context(State)) of
+    AuthorityConf = get_autority_config(get_issuing_authority()),
+    AuthData = issue_auth_data(ID, ContextFragment, Metadata, AuthorityConf),
+    case store(AuthData, build_context(State)) of
         ok ->
             {ok, Token} = tk_token_jwt:issue(ID, #{}, get_signer(AuthorityConf)),
             EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
@@ -83,9 +83,7 @@ handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
 handle_function_('Get' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {_, Authority} = get_autority_config(get_issuing_authority()),
-
-    case tk_authority:get_authdata_by_id(ID, Authority, build_context(State)) of
+    case get_authdata_by_id(ID, build_context(State)) of
         {ok, AuthData} ->
             EncodedAuthData = encode_auth_data(AuthData),
             _ = handle_beat(Op, succeeded, State),
@@ -97,9 +95,7 @@ handle_function_('Get' = Op, {ID}, State) ->
 handle_function_('Revoke' = Op, {ID}, State) ->
     _ = handle_beat(Op, started, State),
 
-    {_, Authority} = get_autority_config(get_issuing_authority()),
-
-    case tk_authority:revoke(ID, Authority, build_context(State)) of
+    case revoke(ID, build_context(State)) of
         ok ->
             _ = handle_beat(Op, succeeded, State),
             {ok, ok};
@@ -206,6 +202,20 @@ get_signer({AuthorityID, AuthorityConf}) ->
         _ ->
             error({misconfiguration, {issuing, {no_key, SignerKID}}})
     end.
+
+%%
+
+get_authdata_by_id(ID, Ctx) ->
+    tk_storage:get(ID, get_storage_opts(), Ctx).
+
+store(AuthData, Ctx) ->
+    tk_storage:store(AuthData, get_storage_opts(), Ctx).
+
+revoke(ID, Ctx) ->
+    tk_storage:revoke(ID, get_storage_opts(), Ctx).
+
+get_storage_opts() ->
+    application:get_env(token_keeper, storage, #{}).
 
 %%
 

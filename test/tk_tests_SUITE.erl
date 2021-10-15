@@ -100,7 +100,7 @@ groups() ->
             jti_and_authority_blacklist_test,
             empty_blacklist_test
         ]},
-        {others, [], [
+        {others, [parallel], [
             simple_create_test,
             create_twice_test,
             revoke_twice_test,
@@ -267,6 +267,7 @@ init_per_group(others = Name, C) ->
         {issuing, #{
             authority => issuing_authority
         }},
+        {storage, #{backend => machinegun}},
         {service_clients, #{
             storage => #{
                 url => <<"http://machinegun:8022/v1/automaton">>
