@@ -2,7 +2,8 @@
 
 %% Behaviour
 
--callback get_authdata(tk_token_jwt:t(), source_opts(), map()) -> sourced_authdata() | undefined.
+-callback get_authdata(tk_token_jwt:t(), source_opts(), tk_woody_handler:handle_ctx()) ->
+    sourced_authdata() | undefined.
 
 %% API functions
 
@@ -26,7 +27,6 @@
 
 -export_type([authdata_source/0]).
 -export_type([sourced_authdata/0]).
--export_type([source_opts/0]).
 
 %% Internal types
 
@@ -38,7 +38,8 @@
 
 %% API functions
 
--spec get_authdata(authdata_source(), tk_token_jwt:t(), map()) -> sourced_authdata() | undefined.
+-spec get_authdata(authdata_source(), tk_token_jwt:t(), tk_woody_handler:handle_ctx()) ->
+    sourced_authdata() | undefined.
 get_authdata(AuthDataSource, Token, Ctx) ->
     {Source, Opts} = get_source_opts(AuthDataSource),
     Hander = get_source_handler(Source),

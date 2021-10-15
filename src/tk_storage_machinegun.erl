@@ -48,7 +48,7 @@
 %% tk_storage behaviour implementation
 
 %% Collapse history and return the auth data?
--spec get(authdata_id(), storage_opts(), map()) -> {ok, storable_authdata()} | {error, _Reason}.
+-spec get(authdata_id(), storage_opts(), tk_woody_handler:handle_ctx()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(ID, _Opts, Ctx) ->
     case machinery:get(?NS, ID, backend(Ctx)) of
         {ok, Machine} ->
@@ -59,13 +59,13 @@ get(ID, _Opts, Ctx) ->
 
 %% Start a new machine, post event, make claims with id
 %% Consider ways to generate authdata ids?
--spec store(storable_authdata(), storage_opts(), map()) -> ok | {error, exists}.
+-spec store(storable_authdata(), storage_opts(), tk_woody_handler:handle_ctx()) -> ok | {error, exists}.
 store(AuthData, _Opts, Ctx) ->
     DataID = tk_authority:get_authdata_id(AuthData),
     machinery:start(?NS, DataID, {store, AuthData}, backend(Ctx)).
 
 %% Post a revocation event?
--spec revoke(authdata_id(), storage_opts(), map()) -> ok | {error, notfound}.
+-spec revoke(authdata_id(), storage_opts(), tk_woody_handler:handle_ctx()) -> ok | {error, notfound}.
 revoke(ID, _Opts, Ctx) ->
     case machinery:call(?NS, ID, revoke, backend(Ctx)) of
         {ok, _Reply} ->
@@ -100,9 +100,9 @@ process_timeout(_Machine, _, _) ->
 
 -spec process_call(machinery:args(revoke), machine(), handler_args(), handler_opts()) ->
     {machinery:response(ok), result()}.
-process_call(revoke, _Machine, _, _) ->
+process_call(revoke, Machine, _, _) ->
     {ok, #{
-        events => [{status_changed, #tk_events_AuthDataStatusChanged{status = revoked}}]
+        events => change_status(revoked, Machine)
     }}.
 
 %%-------------------------------------
@@ -138,3 +138,10 @@ collapse_history([{_, _, {created, AuthData}} | Rest], undefined) ->
 collapse_history([{_, _, {status_changed, StatusChanged}} | Rest], AuthData) when AuthData =/= undefined ->
     #tk_events_AuthDataStatusChanged{status = Status} = StatusChanged,
     collapse_history(Rest, AuthData#{status => Status}).
+
+change_status(Status, #{history := History}) ->
+    {_, _, Event} = lists:last(History),
+    case Event of
+        {status_changed, #tk_events_AuthDataStatusChanged{status = Status}} -> [];
+        _ -> [{status_changed, #tk_events_AuthDataStatusChanged{status = Status}}]
+    end.

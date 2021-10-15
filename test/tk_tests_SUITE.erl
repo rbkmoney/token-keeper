@@ -697,14 +697,14 @@ getbytoken_test(C) ->
     %% create
     #token_keeper_AuthData{
         id = ID,
+        token = Token,
         status = active,
-        context = _Context,
+        context = Context,
         metadata = Metadata,
         authority = ?TK_AUTHORITY_CAPI
     } = call_create(ID, Context, Metadata, Client),
 
     %% getbytoken
-    {ok, Token} = issue_token(JTI, #{<<"sub">> => <<"TEST">>}, unlimited),
     #token_keeper_AuthData{
         id = ID,
         token = Token,

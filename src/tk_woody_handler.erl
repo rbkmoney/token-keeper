@@ -8,6 +8,12 @@
 -behaviour(woody_server_thrift_handler).
 -export([handle_function/4]).
 
+-type handle_ctx() :: #{
+    woody_ctx := woody_context:ctx()
+}.
+
+-export_type([handle_ctx/0]).
+
 %% Internal types
 
 -type opts() :: #{

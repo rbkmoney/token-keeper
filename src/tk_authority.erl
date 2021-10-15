@@ -59,8 +59,7 @@ get_authdata_id(AuthData) ->
 get_signer(Authority) ->
     maps:get(signer, Authority).
 
--spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority() | autority_id()) ->
-    authdata().
+-spec create_authdata(authdata_id() | undefined, encoded_context_fragment(), metadata(), authority()) -> authdata().
 create_authdata(ID, ContextFragment, Metadata, Authority) ->
     AuthData = #{
         status => active,
@@ -69,7 +68,7 @@ create_authdata(ID, ContextFragment, Metadata, Authority) ->
     },
     add_authority_id(add_id(AuthData, ID), Authority).
 
--spec get_authdata_by_token(tk_token_jwt:t(), authority(), map()) ->
+-spec get_authdata_by_token(tk_token_jwt:t(), authority(), tk_woody_handler:handle_ctx()) ->
     {ok, authdata()} | {error, {authdata_not_found, _Sources}}.
 get_authdata_by_token(Token, Authority, Ctx) ->
     AuthDataSources = get_auth_data_sources(Authority),

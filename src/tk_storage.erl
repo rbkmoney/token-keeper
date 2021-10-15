@@ -7,9 +7,10 @@
 
 %%
 
--callback get(authdata_id(), opts(), map()) -> {ok, tk_storage:storable_authdata()} | {error, _Reason}.
--callback store(tk_storage:storable_authdata(), opts(), map()) -> ok | {error, _Reason}.
--callback revoke(authdata_id(), opts(), map()) -> ok | {error, _Reason}.
+-callback get(authdata_id(), opts(), tk_woody_handler:handle_ctx()) ->
+    {ok, tk_storage:storable_authdata()} | {error, _Reason}.
+-callback store(tk_storage:storable_authdata(), opts(), tk_woody_handler:handle_ctx()) -> ok | {error, _Reason}.
+-callback revoke(authdata_id(), opts(), tk_woody_handler:handle_ctx()) -> ok | {error, _Reason}.
 
 %%
 
@@ -35,15 +36,15 @@
 
 %%
 
--spec get(authdata_id(), storage_opts(), map()) -> {ok, storable_authdata()} | {error, _Reason}.
+-spec get(authdata_id(), storage_opts(), tk_woody_handler:handle_ctx()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(DataID, StorageOpts, Ctx) ->
     call(DataID, StorageOpts, Ctx, get).
 
--spec store(storable_authdata(), storage_opts(), map()) -> ok | {error, exists}.
+-spec store(storable_authdata(), storage_opts(), tk_woody_handler:handle_ctx()) -> ok | {error, exists}.
 store(AuthData, StorageOpts, Ctx) ->
     call(AuthData, StorageOpts, Ctx, store).
 
--spec revoke(authdata_id(), storage_opts(), map()) -> ok | {error, notfound}.
+-spec revoke(authdata_id(), storage_opts(), tk_woody_handler:handle_ctx()) -> ok | {error, notfound}.
 revoke(DataID, StorageOpts, Ctx) ->
     call(DataID, StorageOpts, Ctx, revoke).
 
