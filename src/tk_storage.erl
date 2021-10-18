@@ -3,7 +3,7 @@
 -export([get/3]).
 -export([store/3]).
 -export([revoke/3]).
--export([get_storage_handler/1]).
+-export([get_routes/2]).
 
 %%
 
@@ -48,11 +48,21 @@ store(AuthData, StorageOpts, Ctx) ->
 revoke(DataID, StorageOpts, Ctx) ->
     call(DataID, StorageOpts, Ctx, revoke).
 
+-spec get_routes(storage_opts(), machinery_utils:route_opts()) -> machinery_utils:woody_routes().
+get_routes(StorageOpts, RouteOpts) ->
+    case get_storage_opts(StorageOpts) of
+        {error, _} = Err ->
+            Err;
+        {Storage, _Opts} ->
+            Handler = get_storage_handler(Storage),
+            Handler:get_routes(RouteOpts)
+    end.
+
+%%
+
 -spec get_storage_handler(storage()) -> machinery:logic_handler(_).
 get_storage_handler(machinegun) ->
     tk_storage_machinegun.
-
-%%
 
 call(Operand, StorageOpts, Ctx, Func) ->
     case get_storage_opts(StorageOpts) of

@@ -10,6 +10,9 @@
 -export([store/3]).
 -export([revoke/3]).
 
+%% API
+-export([get_routes/1]).
+
 %% machinery interface
 -export([init/4]).
 -export([process_repair/4]).
@@ -106,11 +109,26 @@ process_call(revoke, Machine, _, _) ->
     }}.
 
 %%-------------------------------------
+%% API
+
+-spec get_routes(machinery_utils:route_opts()) -> machinery_utils:woody_routes().
+get_routes(RouteOpts) ->
+    machinery_mg_backend:get_routes([create_handler()], RouteOpts).
+
+%%-------------------------------------
 %% internal
+
+create_handler() ->
+    {?MODULE, #{
+        path => <<"/v1/stateproc/storage">>,
+        backend_config => #{
+            schema => machinery_mg_schema_generic
+        }
+    }}.
 
 backend(#{woody_ctx := WC}) ->
     case genlib_app:env(token_keeper, service_clients, #{}) of
-        #{storage := Automaton} ->
+        #{automaton := Automaton} ->
             machinery_mg_backend:new(WC, #{
                 client => get_woody_client(Automaton),
                 schema => machinery_mg_schema_generic

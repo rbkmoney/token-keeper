@@ -269,7 +269,7 @@ init_per_group(others = Name, C) ->
         }},
         {storage, #{backend => machinegun}},
         {service_clients, #{
-            storage => #{
+            automaton => #{
                 url => <<"http://machinegun:8022/v1/automaton">>
             }
         }},

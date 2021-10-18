@@ -63,7 +63,7 @@ init([]) ->
             shutdown_timeout => get_shutdown_timeout(),
             event_handler => EventHandlers,
             handlers => get_handler_specs(ServiceOpts, AuditPulse),
-            additional_routes => get_routes(EventHandlers)
+            additional_routes => get_additional_routes(EventHandlers)
         }
     ),
     TokensOpts = genlib_app:env(?MODULE, jwt, #{}),
@@ -120,22 +120,11 @@ get_audit_specs() ->
             {[], []}
     end.
 
--spec get_routes(woody:ev_handlers()) -> [woody_server_thrift_http_handler:route(_)].
-get_routes(EventHandlers) ->
-    Clients = genlib_app:env(?MODULE, service_clients, #{}),
-    Handlers = [create_handler(Item) || Item <- maps:to_list(Clients)],
-    RouteOpts = #{event_handler => EventHandlers},
+-spec get_additional_routes(woody:ev_handlers()) -> machinery_utils:woody_routes().
+get_additional_routes(EventHandlers) ->
     Check = enable_health_logging(genlib_app:env(?MODULE, health_check, #{})),
-    [erl_health_handle:get_route(Check) | machinery_mg_backend:get_routes(Handlers, RouteOpts)].
-
-create_handler({storage, Opts}) ->
-    {tk_storage:get_storage_handler(machinegun), Opts#{
-        path => <<"/v1/stateproc/storage">>,
-        backend_config => #{
-            %% TODO: ??? see tk_storage_machinegun:backend
-            schema => machinery_mg_schema_generic
-        }
-    }}.
+    StorageOpts = genlib_app:env(?MODULE, storage, #{}),
+    [erl_health_handle:get_route(Check) | tk_storage:get_routes(StorageOpts, #{event_handler => EventHandlers})].
 
 %%
 
