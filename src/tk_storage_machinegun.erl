@@ -29,7 +29,7 @@
 -type storable_authdata() :: tk_storage:storable_authdata().
 -type authdata_id() :: tk_authority:authdata_id().
 
--type schema() :: machinery_mg_schema_generic | atom().
+-type schema() :: machinery_mg_schema_generic.
 -type event_handler() :: woody:ev_handler() | [woody:ev_handler()].
 
 -type automaton() :: #{
@@ -50,24 +50,20 @@
 %%-------------------------------------
 %% tk_storage behaviour implementation
 
-%% Collapse history and return the auth data?
 -spec get(authdata_id(), storage_opts(), tk_woody_handler:handle_ctx()) -> {ok, storable_authdata()} | {error, _Reason}.
 get(ID, _Opts, Ctx) ->
     case machinery:get(?NS, ID, backend(Ctx)) of
         {ok, Machine} ->
-            collapse(Machine);
+            {ok, collapse(Machine)};
         {error, _} = Err ->
             Err
     end.
 
-%% Start a new machine, post event, make claims with id
-%% Consider ways to generate authdata ids?
 -spec store(storable_authdata(), storage_opts(), tk_woody_handler:handle_ctx()) -> ok | {error, exists}.
 store(AuthData, _Opts, Ctx) ->
     DataID = tk_authority:get_authdata_id(AuthData),
     machinery:start(?NS, DataID, {store, AuthData}, backend(Ctx)).
 
-%% Post a revocation event?
 -spec revoke(authdata_id(), storage_opts(), tk_woody_handler:handle_ctx()) -> ok | {error, notfound}.
 revoke(ID, _Opts, Ctx) ->
     case machinery:call(?NS, ID, revoke, backend(Ctx)) of
@@ -104,9 +100,8 @@ process_timeout(_Machine, _, _) ->
 -spec process_call(machinery:args(revoke), machine(), handler_args(), handler_opts()) ->
     {machinery:response(ok), result()}.
 process_call(revoke, Machine, _, _) ->
-    {ok, #{
-        events => change_status(revoked, Machine)
-    }}.
+    Events = change_status(revoked, Machine),
+    {ok, #{events => Events}}.
 
 %%-------------------------------------
 %% API
@@ -149,7 +144,7 @@ collapse(#{history := History}) ->
     collapse_history(History, undefined).
 
 collapse_history([], AuthData) when AuthData =/= undefined ->
-    {ok, AuthData};
+    AuthData;
 collapse_history([{_, _, {created, AuthData}} | Rest], undefined) ->
     #tk_events_AuthDataCreated{id = ID, context = Ctx, status = Status, metadata = Meta} = AuthData,
     collapse_history(Rest, #{id => ID, context => Ctx, status => Status, metadata => Meta});
@@ -157,9 +152,10 @@ collapse_history([{_, _, {status_changed, StatusChanged}} | Rest], AuthData) whe
     #tk_events_AuthDataStatusChanged{status = Status} = StatusChanged,
     collapse_history(Rest, AuthData#{status => Status}).
 
-change_status(Status, #{history := History}) ->
-    {_, _, Event} = lists:last(History),
-    case Event of
-        {status_changed, #tk_events_AuthDataStatusChanged{status = Status}} -> [];
-        _ -> [{status_changed, #tk_events_AuthDataStatusChanged{status = Status}}]
+change_status(NewStatus, Machine) ->
+    case collapse(Machine) of
+        #{status := NewStatus} ->
+            [];
+        #{status := _OtherStatus} ->
+            [{status_changed, #tk_events_AuthDataStatusChanged{status = NewStatus}}]
     end.

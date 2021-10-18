@@ -8,7 +8,7 @@
 %%
 
 -type stored_authdata() :: tk_storage:storable_authdata().
--type source_opts() :: tk_storage:storage_opts().
+-type source_opts() :: #{}.
 
 -export_type([stored_authdata/0]).
 -export_type([source_opts/0]).
@@ -16,8 +16,8 @@
 %% Behaviour functions
 
 -spec get_authdata(tk_token_jwt:t(), source_opts(), tk_woody_handler:handle_ctx()) -> stored_authdata() | undefined.
-get_authdata(Token, StorageOpts, Ctx) ->
-    case tk_storage:get(get_authdata_id(Token), StorageOpts, Ctx) of
+get_authdata(Token, _SourceOpts, Ctx) ->
+    case tk_storage:get(get_authdata_id(Token), Ctx) of
         {ok, AuthData} ->
             AuthData;
         {error, Reason} ->

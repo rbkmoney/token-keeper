@@ -123,8 +123,14 @@ get_audit_specs() ->
 -spec get_additional_routes(woody:ev_handlers()) -> machinery_utils:woody_routes().
 get_additional_routes(EventHandlers) ->
     Check = enable_health_logging(genlib_app:env(?MODULE, health_check, #{})),
-    StorageOpts = genlib_app:env(?MODULE, storage, #{}),
-    [erl_health_handle:get_route(Check) | tk_storage:get_routes(StorageOpts, #{event_handler => EventHandlers})].
+    HealthRoute = erl_health_handle:get_route(Check),
+    case genlib_app:env(?MODULE, storage) of
+        %% TODO: Better storage initialization
+        {machinegun, _} ->
+            [HealthRoute | tk_storage_machinegun:get_routes(#{event_handler => EventHandlers})];
+        _ ->
+            [HealthRoute]
+    end.
 
 %%
 

@@ -156,7 +156,6 @@ encode_auth_data(AuthData) ->
     #token_keeper_AuthData{
         id = maps:get(id, AuthData, undefined),
         token = maps:get(token, AuthData, undefined),
-        %% Assume active?
         status = maps:get(status, AuthData),
         context = maps:get(context, AuthData),
         metadata = maps:get(metadata, AuthData, #{}),
@@ -212,16 +211,13 @@ get_signer({AuthorityID, AuthorityConf}) ->
 %%
 
 get_authdata_by_id(ID, Ctx) ->
-    tk_storage:get(ID, get_storage_opts(), Ctx).
+    tk_storage:get(ID, Ctx).
 
 store(AuthData, Ctx) ->
-    tk_storage:store(AuthData, get_storage_opts(), Ctx).
+    tk_storage:store(AuthData, Ctx).
 
 revoke(ID, Ctx) ->
-    tk_storage:revoke(ID, get_storage_opts(), Ctx).
-
-get_storage_opts() ->
-    application:get_env(token_keeper, storage, #{}).
+    tk_storage:revoke(ID, Ctx).
 
 %%
 

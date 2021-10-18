@@ -267,7 +267,7 @@ init_per_group(others = Name, C) ->
         {issuing, #{
             authority => issuing_authority
         }},
-        {storage, #{backend => machinegun}},
+        {storage, {machinegun, #{}}},
         {service_clients, #{
             automaton => #{
                 url => <<"http://machinegun:8022/v1/automaton">>
@@ -278,7 +278,8 @@ init_per_group(others = Name, C) ->
                 id => ?TK_AUTHORITY_CAPI,
                 signer => test,
                 authdata_sources => [
-                    {storage, #{backend => machinegun}}
+                    {storage, #{}},
+                    claim
                 ]
             }
         }}
@@ -594,7 +595,7 @@ simple_create_test(C) ->
     #token_keeper_AuthData{
         id = ID,
         status = active,
-        context = _Context,
+        context = Context,
         metadata = Metadata,
         authority = ?TK_AUTHORITY_CAPI
     } = call_create(ID, Context, Metadata, Client),
@@ -606,7 +607,7 @@ simple_create_test(C) ->
     #token_keeper_AuthData{
         id = ID,
         status = revoked,
-        context = _Context,
+        context = Context,
         metadata = Metadata
     } = call_get(ID, Client).
 
@@ -652,7 +653,7 @@ revoke_twice_test(C) ->
     #token_keeper_AuthData{
         id = ID,
         status = active,
-        context = _Context,
+        context = Context,
         metadata = Metadata,
         authority = ?TK_AUTHORITY_CAPI
     } = call_create(ID, Context, Metadata, Client),
@@ -661,7 +662,7 @@ revoke_twice_test(C) ->
     #token_keeper_AuthData{
         id = ID,
         status = revoked,
-        context = _Context,
+        context = Context,
         metadata = Metadata
     } = call_get(ID, Client),
 
@@ -669,7 +670,7 @@ revoke_twice_test(C) ->
     #token_keeper_AuthData{
         id = ID,
         status = revoked,
-        context = _Context,
+        context = Context,
         metadata = Metadata
     } = call_get(ID, Client).
 

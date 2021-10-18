@@ -15,7 +15,7 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token_jwt:t(), source_opts(), map()) -> stored_authdata() | undefined.
+-spec get_authdata(tk_token_jwt:t(), source_opts(), tk_woody_handler:handle_ctx()) -> stored_authdata() | undefined.
 get_authdata(Token, Opts, _Ctx) ->
     Claims = tk_token_jwt:get_claims(Token),
     case tk_token_claim_utils:decode_authdata(Claims, Opts) of
