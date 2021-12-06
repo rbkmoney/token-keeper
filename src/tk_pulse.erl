@@ -20,7 +20,14 @@
 
 %%
 
--type beat_op() :: authenticate | create | create_ephemeral | get | revoke.
+-type beat_op() ::
+    {authenticator, authenticator_op()}
+    | {ephemeral, ephemeral_op()}
+    | {offline, offline_op()}.
+
+-type authenticator_op() :: authenticate.
+-type ephemeral_op() :: create.
+-type offline_op() :: create | get | revoke.
 
 -type handler() :: {module(), _Opts}.
 -type handler(St) :: {module(), St}.

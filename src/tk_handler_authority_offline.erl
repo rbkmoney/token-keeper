@@ -124,11 +124,11 @@ pulse_op_failed(Op, Reason, State) ->
     handle_beat(Op, {failed, Reason}, State).
 
 encode_beat_op('Create') ->
-    create;
+    {offline, create};
 encode_beat_op('Get') ->
-    get;
+    {offline, get};
 encode_beat_op('Revoke') ->
-    revoke.
+    {offline, revoke}.
 
 handle_beat(Op, Event, #{pulse_metadata := PulseMetadata, pulse := Pulse}) ->
     tk_pulse:handle_beat({encode_beat_op(Op), Event}, PulseMetadata, Pulse).

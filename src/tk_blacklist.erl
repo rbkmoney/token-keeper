@@ -22,7 +22,7 @@
 
 %%
 
--define(TERM_KEY, {?MODULE, mappings}).
+-define(TAB, ?MODULE).
 
 %%
 
@@ -36,24 +36,18 @@ child_spec(Options) ->
 
 -spec is_blacklisted(tk_token:token_id(), tk_authdata:authority_id()) -> boolean().
 is_blacklisted(TokenID, AuthorityID) ->
-    match_entry(AuthorityID, TokenID, get_entires()).
-
-%%
-
-match_entry(AuthorityID, Token, Entries) ->
-    case maps:get(AuthorityID, Entries, undefined) of
-        AuthorityEntries when AuthorityEntries =/= undefined ->
-            lists:member(Token, AuthorityEntries);
-        undefined ->
-            false
-    end.
+    check_entry({AuthorityID, TokenID}).
 
 %%
 
 -spec init(options()) -> {ok, {supervisor:sup_flags(), [supervisor:child_spec()]}}.
 init(Options) ->
+    _ = init_tab(),
     _ = load_blacklist_conf(maps:get(path, Options, undefined)),
     {ok, {#{}, []}}.
+
+init_tab() ->
+    ets:new(?TAB, [set, protected, named_table, {read_concurrency, true}]).
 
 -define(ENTRIES_KEY, "entries").
 
@@ -67,17 +61,23 @@ load_blacklist_conf(Filename) ->
 
 process_entries(Entries) ->
     lists:foldl(
-        fun({K, V}, Acc) ->
-            Acc#{list_to_binary(K) => [list_to_binary(V0) || V0 <- V]}
+        fun({AuthorityID, TokenIDs}, Acc) ->
+            Acc ++ [make_ets_entry(AuthorityID, ID) || ID <- TokenIDs]
         end,
-        #{},
+        [],
         Entries
     ).
+
+make_ets_entry(AuthorityID, TokenID) ->
+    {{list_to_binary(AuthorityID), list_to_binary(TokenID)}, true}.
 
 %%
 
 put_entires(Entries) ->
-    persistent_term:put(?TERM_KEY, Entries).
+    ets:insert_new(?TAB, Entries).
 
-get_entires() ->
-    persistent_term:get(?TERM_KEY).
+check_entry(Key) ->
+    case ets:lookup(?TAB, Key) of
+        [_Entry] -> true;
+        [] -> false
+    end.

@@ -76,7 +76,7 @@ pulse_op_succeeded(Op, State) ->
     handle_beat(Op, succeeded, State).
 
 encode_beat_op('Create') ->
-    create_ephemeral.
+    {ephemeral, create}.
 
 handle_beat(Op, Event, #{pulse_metadata := PulseMetadata, pulse := Pulse}) ->
     tk_pulse:handle_beat({encode_beat_op(Op), Event}, PulseMetadata, Pulse).

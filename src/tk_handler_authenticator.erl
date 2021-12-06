@@ -12,10 +12,10 @@
 
 -type authority_id() :: tk_authdata:authority_id().
 -type authorities() :: #{authority_id() => authority_opts()}.
--type authority_opts() :: ephemeral_authority_opts() | external_authorit_opts() | offline_authority_opts().
+-type authority_opts() :: ephemeral_authority_opts() | external_authority_opts() | offline_authority_opts().
 
 -type ephemeral_authority_opts() :: {ephemeral, #{}}.
--type external_authorit_opts() :: {external, #{sources := [tk_authdata_source:authdata_source()]}}.
+-type external_authority_opts() :: {external, #{sources := [tk_authdata_source:authdata_source()]}}.
 -type offline_authority_opts() :: {offline, #{storage_name := tk_storage:storage_name()}}.
 
 -type opts() :: #{
@@ -138,7 +138,7 @@ pulse_op_failed(Op, Reason, State) ->
     handle_beat(Op, {failed, Reason}, State).
 
 encode_beat_op('Authenticate') ->
-    authenticate.
+    {authenticator, authenticate}.
 
 handle_beat(Op, Event, #{pulse_metadata := PulseMetadata, pulse := Pulse}) ->
     tk_pulse:handle_beat({encode_beat_op(Op), Event}, PulseMetadata, Pulse).
