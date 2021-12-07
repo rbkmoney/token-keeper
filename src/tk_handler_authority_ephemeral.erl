@@ -3,21 +3,42 @@
 -include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 -include_lib("token_keeper_proto/include/tk_token_keeper_thrift.hrl").
 
+-export([get_handler_spec/2]).
+
 %% Woody handler
 
 -behaviour(tk_handler).
 -export([handle_function/4]).
 
-%% Internal types
-
--type opts() :: #{
+-type handler_opts() :: #{
     token := token_opts()
 }.
 
--type token_opts() :: #{
-    type := tk_token:token_type(),
-    authority_id := tk_token:authority_id()
+-export_type([handler_opts/0]).
+
+%% Internal types
+
+-type opts() :: #{
+    authority_id := tk_token:authority_id(),
+    token_type := tk_token:token_type()
 }.
+
+-type token_opts() :: #{
+    type := tk_token:token_type()
+}.
+
+%%
+
+-spec get_handler_spec(woody:func(), handler_opts()) -> woody:th_handler().
+get_handler_spec(AuthorityID, Opts) ->
+    Token = maps:get(token, Opts),
+    {
+        {tk_token_keeper_thrift, 'EphemeralTokenAuthority'},
+        {?MODULE, #{
+            authority_id => AuthorityID,
+            token_type => maps:get(type, Token)
+        }}
+    }.
 
 %%
 
@@ -38,11 +59,11 @@ create_auth_data(ContextFragment, Metadata) ->
 
 %%
 
-create_token_data(Claims, #{token := TokenOpts}) ->
+create_token_data(Claims, #{authority_id := AuthorityID, token_type := TokenType}) ->
     #{
         id => unique_id(),
-        type => maps:get(type, TokenOpts),
-        authority_id => maps:get(authority_id, TokenOpts),
+        type => TokenType,
+        authority_id => AuthorityID,
         expiration => unlimited,
         payload => Claims
     }.
@@ -76,7 +97,7 @@ pulse_op_succeeded(Op, State) ->
     handle_beat(Op, succeeded, State).
 
 encode_beat_op('Create') ->
-    {ephemeral, create}.
+    {authority, {ephemeral, create}}.
 
 handle_beat(Op, Event, #{pulse_metadata := PulseMetadata, pulse := Pulse}) ->
     tk_pulse:handle_beat({encode_beat_op(Op), Event}, PulseMetadata, Pulse).

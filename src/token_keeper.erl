@@ -72,64 +72,22 @@ init([]) ->
 -spec get_woody_handlers(tk_pulse:handlers()) -> [woody:http_handler(woody:th_handler())].
 get_woody_handlers(AuditPulse) ->
     lists:flatten([
-        get_authenticator_handler_spec(genlib_app:env(?MODULE, authenticator, #{}), AuditPulse),
-        get_ephemeral_authority_handlers(genlib_app:env(?MODULE, ephemeral_authorities, []), AuditPulse),
-        get_offline_authority_handlers(genlib_app:env(?MODULE, offline_authorities, []), AuditPulse)
+        get_authenticator_handler(genlib_app:env(?MODULE, authenticator, #{}), AuditPulse),
+        get_authority_handler(genlib_app:env(?MODULE, authorities, #{}), AuditPulse)
     ]).
 
--spec get_authenticator_handler_spec(_, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
-get_authenticator_handler_spec(Config, AuditPulse) ->
-    Service = maps:get(service, Config),
-    Authorities = maps:get(authorities, Config, #{}),
-    {
-        maps:get(path, Service, <<"/v2/authenticator">>),
-        get_handler_spec(
-            {tk_token_keeper_thrift, 'TokenAuthenticator'},
-            {tk_handler_authenticator, #{authorities => Authorities}},
-            AuditPulse
-        )
-    }.
+-spec get_authenticator_handler(_, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
+get_authenticator_handler(Config, AuditPulse) ->
+    tk_handler:get_authenticator_handler(Config, AuditPulse).
 
--spec get_ephemeral_authority_handlers(_, tk_pulse:handlers()) -> [woody:http_handler(woody:th_handler())].
-get_ephemeral_authority_handlers(Config, AuditPulse) ->
-    get_authority_handlers(ephemeral, Config, AuditPulse).
-
--spec get_offline_authority_handlers(_, tk_pulse:handlers()) -> [woody:http_handler(woody:th_handler())].
-get_offline_authority_handlers(Config, AuditPulse) ->
-    get_authority_handlers(offline, Config, AuditPulse).
-
-get_authority_handlers(AuthorityType, Config, AuditPulse) ->
-    lists:foldr(
-        fun(HandlerConf, Acc) ->
-            [get_authority_handler_spec(AuthorityType, HandlerConf, AuditPulse) | Acc]
+get_authority_handler(Authorities, AuditPulse) ->
+    maps:fold(
+        fun(AuthorityID, AuthorityOpts, Acc) ->
+            [tk_handler:get_authority_handler(AuthorityID, AuthorityOpts, AuditPulse) | Acc]
         end,
         [],
-        Config
+        Authorities
     ).
-
-get_authority_handler_spec(AuthorityType, #{opts := HandlerOpts} = HandlerConf, AuditPulse) ->
-    Service = maps:get(service, HandlerConf),
-    {
-        maps:get(path, Service),
-        get_handler_spec(
-            get_authority_handler_service_name(AuthorityType),
-            {get_authority_handler_mod(AuthorityType), HandlerOpts},
-            AuditPulse
-        )
-    }.
-
-get_authority_handler_service_name(offline) ->
-    {tk_token_keeper_thrift, 'TokenAuthority'};
-get_authority_handler_service_name(ephemeral) ->
-    {tk_token_keeper_thrift, 'EphemeralTokenAuthority'}.
-
-get_authority_handler_mod(offline) ->
-    tk_handler_authority_offline;
-get_authority_handler_mod(ephemeral) ->
-    tk_handler_authority_ephemeral.
-
-get_handler_spec(ServiceName, Handler, AuditPulse) ->
-    {ServiceName, {tk_handler, #{handler => Handler, pulse => AuditPulse}}}.
 
 %%
 

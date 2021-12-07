@@ -3,10 +3,18 @@
 -include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 -include_lib("token_keeper_proto/include/tk_token_keeper_thrift.hrl").
 
+-export([get_handler_spec/1]).
+
 %% Woody handler
 
 -behaviour(tk_handler).
 -export([handle_function/4]).
+
+-type handler_opts() :: #{
+    authorities := authorities()
+}.
+
+-export_type([handler_opts/0]).
 
 %% Internal types
 
@@ -18,13 +26,19 @@
 -type external_authority_opts() :: {external, #{sources := [tk_authdata_source:authdata_source()]}}.
 -type offline_authority_opts() :: {offline, #{storage_name := tk_storage:storage_name()}}.
 
--type opts() :: #{
-    authorities := authorities()
-}.
+%%
+
+-spec get_handler_spec(handler_opts()) -> woody:th_handler().
+get_handler_spec(Opts) ->
+    {
+        {tk_token_keeper_thrift, 'TokenAuthenticator'},
+        {?MODULE, Opts}
+    }.
 
 %%
 
--spec handle_function(woody:func(), woody:args(), opts(), tk_handler:state()) -> {ok, woody:result()} | no_return().
+-spec handle_function(woody:func(), woody:args(), handler_opts(), tk_handler:state()) ->
+    {ok, woody:result()} | no_return().
 handle_function('AddExistingToken', _Args, _Opts, _State) ->
     erlang:error(not_implemented);
 handle_function('Authenticate' = Op, {Token, TokenSourceContext}, Opts, State) ->

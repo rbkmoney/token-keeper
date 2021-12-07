@@ -2,6 +2,11 @@
 
 -callback handle_function(woody:func(), woody:args(), handler_opts(), state()) -> {ok, woody:result()} | no_return().
 
+%% Config API
+
+-export([get_authenticator_handler/2]).
+-export([get_authority_handler/3]).
+
 %% Woody handler
 
 -behaviour(woody_server_thrift_handler).
@@ -11,7 +16,11 @@
     woody_context := woody_context:ctx()
 }.
 
--type handler_opts() :: map().
+-type handler_opts() ::
+    tk_handler_authenticator:handler_opts()
+    | tk_handler_authority_ephemeral:handler_opts()
+    | tk_handler_authority_offline:handler_opts().
+
 -type opts() :: #{
     handler := {module(), handler_opts()},
     default_handling_timeout => timeout(),
@@ -29,6 +38,24 @@
 -export_type([state/0]).
 
 -define(DEFAULT_HANDLING_TIMEOUT, 30000).
+
+%%
+
+-spec get_authenticator_handler(_, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
+get_authenticator_handler(Opts, AuditPulse) ->
+    get_http_handler(
+        maps:get(service, Opts),
+        get_authenticator_handler_spec(Opts),
+        AuditPulse
+    ).
+
+-spec get_authority_handler(_, _, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
+get_authority_handler(AuthorityID, Opts, AuditPulse) ->
+    get_http_handler(
+        maps:get(service, Opts),
+        get_authority_handler_spec(AuthorityID, maps:get(type, Opts)),
+        AuditPulse
+    ).
 
 %%
 
@@ -58,3 +85,17 @@ ensure_woody_deadline_set(WoodyContext, Opts) ->
         _Other ->
             WoodyContext
     end.
+
+get_http_handler(ServiceConf, HandlerSpec, AuditPulse) ->
+    {maps:get(path, ServiceConf), wrap_handler_spec(HandlerSpec, AuditPulse)}.
+
+wrap_handler_spec({ServiceName, Handler}, AuditPulse) ->
+    {ServiceName, {tk_handler, #{handler => Handler, pulse => AuditPulse}}}.
+
+get_authority_handler_spec(AuthorityID, {ephemeral, Opts}) ->
+    tk_handler_authority_ephemeral:get_handler_spec(AuthorityID, Opts);
+get_authority_handler_spec(AuthorityID, {offline, Opts}) ->
+    tk_handler_authority_offline:get_handler_spec(AuthorityID, Opts).
+
+get_authenticator_handler_spec(Opts) ->
+    tk_handler_authenticator:get_handler_spec(maps:with([authorities], Opts)).

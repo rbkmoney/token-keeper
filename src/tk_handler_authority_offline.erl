@@ -3,22 +3,50 @@
 -include_lib("token_keeper_proto/include/tk_context_thrift.hrl").
 -include_lib("token_keeper_proto/include/tk_token_keeper_thrift.hrl").
 
+-export([get_handler_spec/2]).
+
 %% Woody handler
 
 -behaviour(tk_handler).
 -export([handle_function/4]).
 
+-type handler_opts() :: #{
+    token := token_opts(),
+    storage := storage_opts()
+}.
+
+-export_type([handler_opts/0]).
+
 %% Internal types
 
 -type opts() :: #{
-    token := token_opts(),
+    authority_id := tk_token:authority_id(),
+    token_type := tk_token:token_type(),
     storage_name := tk_storage:storage_name()
 }.
 
--type token_opts() :: #{
-    type := tk_token:token_type(),
-    authority_id := tk_token:authority_id()
+-type storage_opts() :: #{
+    name := tk_storage:storage_name()
 }.
+
+-type token_opts() :: #{
+    type := tk_token:token_type()
+}.
+
+%%
+
+-spec get_handler_spec(woody:func(), handler_opts()) -> woody:th_handler().
+get_handler_spec(AuthorityID, Opts) ->
+    Token = maps:get(token, Opts),
+    Storage = maps:get(storage, Opts),
+    {
+        {tk_token_keeper_thrift, 'TokenAuthority'},
+        {?MODULE, #{
+            authority_id => AuthorityID,
+            token_type => maps:get(type, Token),
+            storage_name => maps:get(name, Storage)
+        }}
+    }.
 
 %%
 
@@ -72,11 +100,11 @@ handle_function('Revoke' = Op, {ID}, Opts, State) ->
 create_auth_data(ID, ContextFragment, Metadata) ->
     tk_authdata:create_prototype(ID, ContextFragment, Metadata).
 
-create_token_data(ID, #{token := TokenOpts}) ->
+create_token_data(ID, #{authority_id := AuthorityID, token_type := TokenType}) ->
     #{
         id => ID,
-        type => maps:get(type, TokenOpts),
-        authority_id => maps:get(authority_id, TokenOpts),
+        type => TokenType,
+        authority_id => AuthorityID,
         expiration => unlimited,
         payload => #{}
     }.
@@ -124,11 +152,11 @@ pulse_op_failed(Op, Reason, State) ->
     handle_beat(Op, {failed, Reason}, State).
 
 encode_beat_op('Create') ->
-    {offline, create};
+    {authority, {offline, create}};
 encode_beat_op('Get') ->
-    {offline, get};
+    {authority, {offline, get}};
 encode_beat_op('Revoke') ->
-    {offline, revoke}.
+    {authority, {offline, revoke}}.
 
 handle_beat(Op, Event, #{pulse_metadata := PulseMetadata, pulse := Pulse}) ->
     tk_pulse:handle_beat({encode_beat_op(Op), Event}, PulseMetadata, Pulse).

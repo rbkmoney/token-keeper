@@ -236,8 +236,12 @@ log_allowed(Level) ->
 get_level({authenticate, started}, _Level) -> log_allowed(debug);
 get_level(_, Level) -> Level.
 
-get_message({Op, {failed, _}}) -> get_message({Op, failed});
-get_message({Op, Event}) -> iolist_to_binary([atom_to_binary(Op), <<" ">>, atom_to_binary(Event)]).
+get_message({Op, {failed, _}}) ->
+    get_message({Op, failed});
+get_message({Op, Event}) ->
+    EncodedOp = iolist_to_binary(encode_op(Op)),
+    EncodedEvent = atom_to_binary(Event),
+    <<EncodedOp/binary, " ", EncodedEvent/binary>>.
 
 get_beat_metadata({Op, Event}) ->
     #{Op => build_event(Event)}.
@@ -249,6 +253,11 @@ build_event({failed, Error}) ->
     };
 build_event(Event) ->
     #{event => Event}.
+
+encode_op(Op) when is_atom(Op) ->
+    [atom_to_binary(Op)];
+encode_op({Namespace, Sub}) ->
+    [atom_to_binary(Namespace), <<":">> | encode_op(Sub)].
 
 encode_error({Class, Details}) when is_atom(Class) ->
     #{class => Class, details => genlib:format(Details)};

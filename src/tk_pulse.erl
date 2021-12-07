@@ -22,10 +22,13 @@
 
 -type beat_op() ::
     {authenticator, authenticator_op()}
-    | {ephemeral, ephemeral_op()}
-    | {offline, offline_op()}.
+    | {authority, authority_op()}.
 
 -type authenticator_op() :: authenticate.
+-type authority_op() ::
+    {ephemeral, ephemeral_op()}
+    | {offline, offline_op()}.
+
 -type ephemeral_op() :: create.
 -type offline_op() :: create | get | revoke.
 

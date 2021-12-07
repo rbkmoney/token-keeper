@@ -53,7 +53,7 @@ init_tab() ->
 
 load_blacklist_conf(undefined) ->
     _ = logger:warning("No token blacklist file specified! Blacklisting functionality will be disabled."),
-    put_entires(#{});
+    ok;
 load_blacklist_conf(Filename) ->
     [Mappings] = yamerl_constr:file(Filename),
     Entries = process_entries(proplists:get_value(?ENTRIES_KEY, Mappings)),

@@ -284,19 +284,20 @@ init_per_group(ephemeral = Name, C) ->
                 ?TK_AUTHORITY_CAPI => {ephemeral, #{}}
             }
         }},
-        {ephemeral_authorities, [
-            #{
-                service => #{
-                    path => <<"/v2/authority/com.rbkmoney.access.capi">>
-                },
-                opts => #{
-                    token => #{
-                        type => jwt,
-                        authority_id => ?TK_AUTHORITY_CAPI
-                    }
+        {authorities, #{
+            ?TK_AUTHORITY_CAPI =>
+                #{
+                    service => #{
+                        path => <<"/v2/authority/com.rbkmoney.access.capi">>
+                    },
+                    type =>
+                        {ephemeral, #{
+                            token => #{
+                                type => jwt
+                            }
+                        }}
                 }
-            }
-        ]},
+        }},
         {tokens, #{
             jwt => #{
                 authority_bindings => #{
@@ -328,20 +329,23 @@ init_per_group(offline = Name, C) ->
                     }}
             }
         }},
-        {offline_authorities, [
-            #{
-                service => #{
-                    path => <<"/v2/authority/com.rbkmoney.apikemgmt">>
-                },
-                opts => #{
-                    token => #{
-                        type => jwt,
-                        authority_id => ?TK_AUTHORITY_APIKEYMGMT
+        {authorities, #{
+            ?TK_AUTHORITY_APIKEYMGMT =>
+                #{
+                    service => #{
+                        path => <<"/v2/authority/com.rbkmoney.apikemgmt">>
                     },
-                    storage_name => ?TK_AUTHORITY_APIKEYMGMT
+                    type =>
+                        {offline, #{
+                            token => #{
+                                type => jwt
+                            },
+                            storage => #{
+                                name => ?TK_AUTHORITY_APIKEYMGMT
+                            }
+                        }}
                 }
-            }
-        ]},
+        }},
         {tokens, #{
             jwt => #{
                 authority_bindings => #{
