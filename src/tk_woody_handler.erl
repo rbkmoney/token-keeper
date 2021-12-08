@@ -63,6 +63,24 @@ handle_function_('CreateEphemeral' = Op, {ContextFragment, Metadata}, State) ->
     {ok, EncodedAuthData};
 handle_function_('AddExistingToken', _, _State) ->
     erlang:error(not_implemented);
+handle_function_('GetByToken' = Op, {<<"tkc1:", _/binary>> = Token, _}, State) ->
+    _ = handle_beat(Op, started, State),
+    {_, AuthorityConf} = get_autority_config(token_keeper),
+    case tk_token_compact:verify(Token, AuthorityConf) of
+        {ok, ID} ->
+            case get_authdata_by_id(ID, build_context(State)) of
+                {ok, AuthData} ->
+                    EncodedAuthData = encode_auth_data(AuthData),
+                    _ = handle_beat(Op, succeeded, State),
+                    {ok, EncodedAuthData};
+                {error, Reason} ->
+                    _ = handle_beat(Op, {failed, Reason}, State),
+                    woody_error:raise(business, #token_keeper_AuthDataNotFound{})
+            end;
+        {error, {invalid_token, Reason}} ->
+            _ = handle_beat(Op, {failed, {token_verification, Reason}}, State),
+            woody_error:raise(business, #token_keeper_InvalidToken{})
+    end;
 handle_function_('GetByToken' = Op, {Token, TokenSourceContext}, State) ->
     _ = handle_beat(Op, started, State),
     TokenSourceContextDecoded = decode_source_context(TokenSourceContext),
