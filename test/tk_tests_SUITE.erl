@@ -36,6 +36,9 @@
 -export([revoke_notexisted_test/1]).
 -export([get_notexisted_test/1]).
 -export([getbytoken_test/1]).
+-export([getby_compact_token_test/1]).
+-export([getby_wrong_token_test/1]).
+-export([notexisted_token_test/1]).
 
 -type config() :: ct_helper:config().
 -type group_name() :: atom().
@@ -51,6 +54,7 @@
 
 -define(TK_AUTHORITY_KEYCLOAK, <<"test.rbkmoney.keycloak">>).
 -define(TK_AUTHORITY_CAPI, <<"test.rbkmoney.capi">>).
+-define(TK_AUTHORITY_TK, <<"test.rbkmoney.token-keeper">>).
 
 -define(TK_RESOURCE_DOMAIN, <<"test-domain">>).
 
@@ -72,6 +76,7 @@ all() ->
         {group, invoice_template_access_token},
         {group, issuing},
         {group, blacklist},
+        {group, compact},
         {group, others}
     ].
 
@@ -99,6 +104,11 @@ groups() ->
         {blacklist, [], [
             jti_and_authority_blacklist_test,
             empty_blacklist_test
+        ]},
+        {compact, [parallel], [
+            getby_compact_token_test,
+            getby_wrong_token_test,
+            notexisted_token_test
         ]},
         {others, [parallel], [
             simple_create_test,
@@ -254,6 +264,41 @@ init_per_group(issuing = Name, C) ->
         }}
     ]) ++
         [{groupname, Name} | C];
+init_per_group(compact = Name, C) ->
+    start_keeper([
+        {jwt, #{
+            keyset => #{
+                test => #{
+                    source => {pem_file, get_filename("keys/local/private.pem", C)},
+                    authority => issuing_authority
+                }
+            }
+        }},
+        {issuing, #{
+            authority => issuing_authority
+        }},
+        {storage, {machinegun, #{}}},
+        {service_clients, #{
+            automaton => #{
+                url => <<"http://machinegun:8022/v1/automaton">>
+            }
+        }},
+        {authorities, #{
+            token_keeper => #{
+                %% TODO: ????
+                id => ?TK_AUTHORITY_TK,
+                signkey => <<"supersecretkey">>
+            },
+            issuing_authority => #{
+                id => ?TK_AUTHORITY_CAPI,
+                signer => test,
+                authdata_sources => [
+                    {storage, #{}},
+                    claim
+                ]
+            }
+        }}
+    ]) ++ [{groupname, Name} | C];
 init_per_group(others = Name, C) ->
     start_keeper([
         {jwt, #{
@@ -575,6 +620,60 @@ empty_blacklist_test(C) ->
     {ok, Token1} = issue_token(JTI, #{}, unlimited, primary),
     #token_keeper_AuthDataNotFound{} =
         (catch call_get_by_token(Token1, ?TOKEN_SOURCE_CONTEXT(), Client)).
+
+%%-------------------------------------
+%% compact test group
+
+-spec getby_compact_token_test(config()) -> ok.
+getby_compact_token_test(C) ->
+    Client = mk_client(C),
+    ID = unique_id(),
+    Metadata = #{<<"my">> => <<"metadata">>},
+
+    Context = #bctx_ContextFragment{
+        type = v1_thrift_binary,
+        content = create_bouncer_context(unique_id())
+    },
+
+    %% create
+    #token_keeper_AuthData{
+        id = ID,
+        status = active,
+        context = Context,
+        metadata = Metadata,
+        %% TODO: ?????
+        authority = ?TK_AUTHORITY_CAPI
+    } = call_create(ID, Context, Metadata, Client),
+
+    %% issue and verify
+    Authorities = application:get_env(token_keeper, authorities, #{}),
+    #{signkey := Key} = Opts = maps:get(token_keeper, Authorities),
+    Token = tk_token_compact:issue(Key, ID),
+    {ok, ID} = tk_token_compact:verify(Token, Opts),
+
+    %% getbytoken
+    #token_keeper_AuthData{
+        id = ID,
+        status = active,
+        metadata = Metadata
+    } = call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client).
+
+-spec getby_wrong_token_test(config()) -> ok.
+getby_wrong_token_test(C) ->
+    Client = mk_client(C),
+    BrokenToken = <<"tkc1:", (crypto:strong_rand_bytes(64))/binary>>,
+    #token_keeper_InvalidToken{} = (catch call_get_by_token(BrokenToken, ?TOKEN_SOURCE_CONTEXT(), Client)).
+
+-spec notexisted_token_test(config()) -> ok.
+notexisted_token_test(C) ->
+    Client = mk_client(C),
+    ID = unique_id(),
+
+    Authorities = application:get_env(token_keeper, authorities, #{}),
+    #{signkey := Key} = maps:get(token_keeper, Authorities),
+    Token = tk_token_compact:issue(Key, ID),
+
+    #token_keeper_AuthDataNotFound{} = (catch call_get_by_token(Token, ?TOKEN_SOURCE_CONTEXT(), Client)).
 
 %%-------------------------------------
 %% others test group
