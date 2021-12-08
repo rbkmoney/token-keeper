@@ -43,15 +43,15 @@
     transport_opts => woody_client_thrift_http_transport:transport_options()
 }.
 
--type events() :: tk_events_thrift:'AuthDataChange'().
--type machine() :: machinery:machine(events(), any()).
--type result() :: machinery:result(events(), any()).
+-type event() :: tk_storage_machinegun_schema:event().
+-type machine() :: machinery:machine(event(), any()).
+-type result() :: machinery:result(event(), any()).
 -type handler_args() :: machinery:handler_args(any()).
 -type handler_opts() :: machinery:handler_args(any()).
 
 %%
 
--define(MACHINERY_SCHEMA, machinery_mg_schema_generic).
+-define(MACHINERY_SCHEMA, tk_storage_machinegun_schema).
 
 %%-------------------------------------
 %% API
