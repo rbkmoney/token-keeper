@@ -51,7 +51,7 @@ get_token_id(Key, TokenBody) when is_binary(Key), is_binary(TokenBody) ->
 
 encrypt(Key, Data, Encrypt) ->
     crypto:crypto_one_time(
-        aes_256_ecb,
+        'aes_256_ecb',
         crypto:hash(sha256, Key),
         Data,
         [{encrypt, Encrypt}, {padding, pkcs_padding}]
