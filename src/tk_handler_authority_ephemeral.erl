@@ -10,18 +10,19 @@
 -behaviour(tk_handler).
 -export([handle_function/4]).
 
--type handler_opts() :: #{
+-type handler_config() :: #{
     token := token_opts()
 }.
-
--export_type([handler_opts/0]).
-
-%% Internal types
 
 -type opts() :: #{
     authority_id := tk_token:authority_id(),
     token_type := tk_token:token_type()
 }.
+
+-export_type([handler_config/0]).
+-export_type([opts/0]).
+
+%% Internal types
 
 -type token_opts() :: #{
     type := tk_token:token_type()
@@ -29,9 +30,9 @@
 
 %%
 
--spec get_handler_spec(woody:func(), handler_opts()) -> woody:th_handler().
-get_handler_spec(AuthorityID, Opts) ->
-    Token = maps:get(token, Opts),
+-spec get_handler_spec(woody:func(), handler_config()) -> woody:th_handler().
+get_handler_spec(AuthorityID, Config) ->
+    Token = maps:get(token, Config),
     {
         {tk_token_keeper_thrift, 'EphemeralTokenAuthority'},
         {?MODULE, #{

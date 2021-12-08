@@ -10,20 +10,21 @@
 -behaviour(tk_handler).
 -export([handle_function/4]).
 
--type handler_opts() :: #{
+-type handler_config() :: #{
     token := token_opts(),
     storage := storage_opts()
 }.
-
--export_type([handler_opts/0]).
-
-%% Internal types
 
 -type opts() :: #{
     authority_id := tk_token:authority_id(),
     token_type := tk_token:token_type(),
     storage_name := tk_storage:storage_name()
 }.
+
+-export_type([handler_config/0]).
+-export_type([opts/0]).
+
+%% Internal types
 
 -type storage_opts() :: #{
     name := tk_storage:storage_name()
@@ -35,10 +36,10 @@
 
 %%
 
--spec get_handler_spec(woody:func(), handler_opts()) -> woody:th_handler().
-get_handler_spec(AuthorityID, Opts) ->
-    Token = maps:get(token, Opts),
-    Storage = maps:get(storage, Opts),
+-spec get_handler_spec(woody:func(), handler_config()) -> woody:th_handler().
+get_handler_spec(AuthorityID, Config) ->
+    Token = maps:get(token, Config),
+    Storage = maps:get(storage, Config),
     {
         {tk_token_keeper_thrift, 'TokenAuthority'},
         {?MODULE, #{
@@ -60,7 +61,7 @@ handle_function('Create' = Op, {ID, ContextFragment, Metadata}, Opts, State) ->
     _ = pulse_op_stated(Op, State),
     State1 = save_pulse_metadata(#{authdata_id => ID}, State),
     AuthData = create_auth_data(ID, ContextFragment, Metadata),
-    case store(AuthData, Opts, State1) of
+    case store(AuthData, Opts, get_context(State1)) of
         ok ->
             {ok, Token} = tk_token_jwt:issue(create_token_data(ID, Opts)),
             EncodedAuthData = encode_auth_data(AuthData#{token => Token}),
@@ -73,7 +74,7 @@ handle_function('Create' = Op, {ID, ContextFragment, Metadata}, Opts, State) ->
 handle_function('Get' = Op, {ID}, Opts, State) ->
     _ = pulse_op_stated(Op, State),
     State1 = save_pulse_metadata(#{authdata_id => ID}, State),
-    case get_authdata(ID, Opts, State1) of
+    case get_authdata(ID, Opts, get_context(State1)) of
         {ok, AuthDataPrototype} ->
             %% The initial token is not recoverable at this point
             EncodedAuthData = encode_auth_data(AuthDataPrototype),
@@ -86,7 +87,7 @@ handle_function('Get' = Op, {ID}, Opts, State) ->
 handle_function('Revoke' = Op, {ID}, Opts, State) ->
     _ = pulse_op_stated(Op, State),
     State1 = save_pulse_metadata(#{authdata_id => ID}, State),
-    case revoke(ID, Opts, State1) of
+    case revoke(ID, Opts, get_context(State1)) of
         ok ->
             _ = pulse_op_succeeded(Op, State1),
             {ok, ok};
@@ -111,16 +112,19 @@ create_token_data(ID, #{authority_id := AuthorityID, token_type := TokenType}) -
 
 %%
 
-get_authdata(ID, #{storage_name := StorageName}, #{context := Context}) ->
-    tk_storage:get(ID, StorageName, Context).
+get_authdata(ID, #{storage_name := StorageName}, #{woody_context := WoodyContext}) ->
+    tk_storage:get(ID, StorageName, WoodyContext).
 
-store(AuthData, #{storage_name := StorageName}, #{context := Context}) ->
-    tk_storage:store(AuthData, StorageName, Context).
+store(AuthData, #{storage_name := StorageName}, #{woody_context := WoodyContext}) ->
+    tk_storage:store(AuthData, StorageName, WoodyContext).
 
-revoke(ID, #{storage_name := StorageName}, #{context := Context}) ->
-    tk_storage:revoke(ID, StorageName, Context).
+revoke(ID, #{storage_name := StorageName}, #{woody_context := WoodyContext}) ->
+    tk_storage:revoke(ID, StorageName, WoodyContext).
 
 %%
+
+get_context(#{context := Context}) ->
+    Context.
 
 encode_auth_data(
     #{

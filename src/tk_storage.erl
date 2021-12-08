@@ -14,9 +14,9 @@
 
 %%
 
--callback get(authdata_id(), storage_opts(), tk_handler:ctx()) -> {ok, authdata()} | {error, _Reason}.
--callback store(authdata(), storage_opts(), tk_handler:ctx()) -> ok | {error, _Reason}.
--callback revoke(authdata_id(), storage_opts(), tk_handler:ctx()) -> ok | {error, _Reason}.
+-callback get(authdata_id(), storage_opts(), woody_context:ctx()) -> {ok, authdata()} | {error, _Reason}.
+-callback store(authdata(), storage_opts(), woody_context:ctx()) -> ok | {error, _Reason}.
+-callback revoke(authdata_id(), storage_opts(), woody_context:ctx()) -> ok | {error, _Reason}.
 
 %%
 
@@ -57,15 +57,15 @@ init(StoragesConfig) ->
 
 %%
 
--spec get(authdata_id(), storage_name(), tk_handler:ctx()) -> {ok, authdata()} | {error, _Reason}.
+-spec get(authdata_id(), storage_name(), woody_context:ctx()) -> {ok, authdata()} | {error, _Reason}.
 get(AuthDataID, StorageName, Ctx) ->
     call(get, AuthDataID, get_config(StorageName), Ctx).
 
--spec store(authdata(), storage_name(), tk_handler:ctx()) -> ok | {error, exists}.
+-spec store(authdata(), storage_name(), woody_context:ctx()) -> ok | {error, exists}.
 store(AuthData, StorageName, Ctx) ->
     call(store, AuthData, get_config(StorageName), Ctx).
 
--spec revoke(authdata_id(), storage_name(), tk_handler:ctx()) -> ok | {error, notfound}.
+-spec revoke(authdata_id(), storage_name(), woody_context:ctx()) -> ok | {error, notfound}.
 revoke(AuthDataID, StorageName, Ctx) ->
     call(revoke, AuthDataID, get_config(StorageName), Ctx).
 

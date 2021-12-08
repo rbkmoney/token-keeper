@@ -10,25 +10,24 @@
 -behaviour(tk_handler).
 -export([handle_function/4]).
 
--type handler_opts() :: #{
+-type handler_config() :: #{
     authorities := authorities()
 }.
 
--export_type([handler_opts/0]).
+-type opts() :: handler_config().
+
+-export_type([handler_config/0]).
+-export_type([opts/0]).
 
 %% Internal types
 
 -type authority_id() :: tk_authdata:authority_id().
 -type authorities() :: #{authority_id() => authority_opts()}.
--type authority_opts() :: ephemeral_authority_opts() | external_authority_opts() | offline_authority_opts().
-
--type ephemeral_authority_opts() :: {ephemeral, #{}}.
--type external_authority_opts() :: {external, #{sources := [tk_authdata_source:authdata_source()]}}.
--type offline_authority_opts() :: {offline, #{storage_name := tk_storage:storage_name()}}.
+-type authority_opts() :: #{sources := [tk_authdata_source:authdata_source()]}.
 
 %%
 
--spec get_handler_spec(handler_opts()) -> woody:th_handler().
+-spec get_handler_spec(handler_config()) -> woody:th_handler().
 get_handler_spec(Opts) ->
     {
         {tk_token_keeper_thrift, 'TokenAuthenticator'},
@@ -37,7 +36,7 @@ get_handler_spec(Opts) ->
 
 %%
 
--spec handle_function(woody:func(), woody:args(), handler_opts(), tk_handler:state()) ->
+-spec handle_function(woody:func(), woody:args(), opts(), tk_handler:state()) ->
     {ok, woody:result()} | no_return().
 handle_function('AddExistingToken', _Args, _Opts, _State) ->
     erlang:error(not_implemented);
@@ -68,39 +67,26 @@ handle_function('Authenticate' = Op, {Token, TokenSourceContext}, Opts, State) -
 
 %% Internal functions
 
-get_authdata(TokenData = #{authority_id := AuthorityID}, Opts, State) ->
-    case get_authdata_by_authority(get_authority_config(AuthorityID, Opts), TokenData, State) of
+get_authdata(TokenData = #{authority_id := AuthorityID}, Opts, #{context := Context}) ->
+    case get_authdata_by_authority(get_authority_config(AuthorityID, Opts), TokenData, Context) of
         {ok, AuthData} ->
             {ok, maybe_add_authority_id(AuthData, AuthorityID)};
         {error, _} = Error ->
             Error
     end.
 
-get_authdata_by_authority({external, #{sources := Sources}}, TokenData, _State) ->
-    case get_authdata_from_external_sources(Sources, TokenData) of
-        #{} = AuthData ->
-            {ok, AuthData};
-        undefined ->
-            {error, {authdata_not_found, Sources}}
-    end;
-get_authdata_by_authority({ephemeral, _}, #{payload := TokenPayload}, _State) ->
-    case tk_claim_utils:decode_authdata(TokenPayload) of
-        {ok, AuthData} ->
-            {ok, AuthData};
-        {error, Reason} ->
-            {error, Reason}
-    end;
-get_authdata_by_authority({offline, #{storage_name := StorageName}}, #{id := ID}, #{context := Context}) ->
-    tk_storage:get(ID, StorageName, Context).
+get_authdata_by_authority(#{sources := Sources}, TokenData, #{woody_context := WoodyCtx}) ->
+    get_authdata_from_sources(Sources, TokenData, WoodyCtx).
 
-get_authdata_from_external_sources([], _TokenData) ->
-    undefined;
-get_authdata_from_external_sources([SourceOpts | Rest], TokenData) ->
-    case tk_authdata_source:get_authdata(TokenData, SourceOpts) of
+get_authdata_from_sources([], _TokenData, _WoodyCtx) ->
+    {error, not_found};
+get_authdata_from_sources([SourceOpts | Rest], TokenData, WoodyCtx) ->
+    case tk_authdata_source:get_authdata(TokenData, SourceOpts, WoodyCtx) of
         undefined ->
-            get_authdata_from_external_sources(Rest, TokenData);
+            %% @TODO: Gather errors process them here, instead of relying on logger:warnings at source level
+            get_authdata_from_sources(Rest, TokenData, WoodyCtx);
         AuthData ->
-            AuthData
+            {ok, AuthData}
     end.
 
 get_authority_config(AuthorityID, #{authorities := Configs}) ->

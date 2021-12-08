@@ -63,7 +63,7 @@ get_routes(ProcessorOpts, RouteOpts) ->
 %%-------------------------------------
 %% tk_storage behaviour implementation
 
--spec get(authdata_id(), storage_opts(), tk_handler:ctx()) -> {ok, authdata()} | {error, _Reason}.
+-spec get(authdata_id(), storage_opts(), woody_context:ctx()) -> {ok, authdata()} | {error, _Reason}.
 get(ID, #{namespace := Namespace} = Opts, Ctx) ->
     case machinery:get(Namespace, ID, backend(Opts, Ctx)) of
         {ok, #{history := History}} ->
@@ -72,11 +72,11 @@ get(ID, #{namespace := Namespace} = Opts, Ctx) ->
             Err
     end.
 
--spec store(authdata(), storage_opts(), tk_handler:ctx()) -> ok | {error, exists}.
+-spec store(authdata(), storage_opts(), woody_context:ctx()) -> ok | {error, exists}.
 store(#{id := AuthDataID} = AuthData, #{namespace := Namespace} = Opts, Ctx) ->
     machinery:start(Namespace, AuthDataID, AuthData, backend(Opts, Ctx)).
 
--spec revoke(authdata_id(), storage_opts(), tk_handler:ctx()) -> ok | {error, notfound}.
+-spec revoke(authdata_id(), storage_opts(), woody_context:ctx()) -> ok | {error, notfound}.
 revoke(ID, #{namespace := Namespace} = Opts, Ctx) ->
     case machinery:call(Namespace, ID, revoke, backend(Opts, Ctx)) of
         {ok, _Reply} ->
@@ -90,16 +90,8 @@ revoke(ID, #{namespace := Namespace} = Opts, Ctx) ->
 
 -spec init(machinery:args(authdata()), machine(), handler_args(), handler_opts()) -> result().
 init(AuthData, _Machine, _, _) ->
-    #{
-        events => [
-            {created, #tk_events_AuthDataCreated{
-                id = maps:get(id, AuthData),
-                status = maps:get(status, AuthData),
-                context = maps:get(context, AuthData),
-                metadata = maps:get(metadata, AuthData)
-            }}
-        ]
-    }.
+    Events = create_authdata(AuthData),
+    #{events => Events}.
 
 -spec process_repair(machinery:args(_), machine(), handler_args(), handler_opts()) -> no_return().
 process_repair(_Args, _Machine, _, _) ->
@@ -119,6 +111,16 @@ process_call(revoke, #{history := History}, _, _) ->
 %%-------------------------------------
 %% internal
 
+create_authdata(AuthData) ->
+    [
+        {created, #tk_events_AuthDataCreated{
+            id = maps:get(id, AuthData),
+            status = maps:get(status, AuthData),
+            context = maps:get(context, AuthData),
+            metadata = maps:get(metadata, AuthData)
+        }}
+    ].
+
 change_status(NewStatus, #{status := NewStatus}) ->
     [];
 change_status(NewStatus, #{status := _OtherStatus}) ->
@@ -134,8 +136,8 @@ create_handler(ProcessorOpts) ->
         }
     }}.
 
-backend(#{automaton := Automaton}, #{woody_context := WC}) ->
-    machinery_mg_backend:new(WC, #{
+backend(#{automaton := Automaton}, WoodyContext) ->
+    machinery_mg_backend:new(WoodyContext, #{
         client => get_woody_client(Automaton),
         schema => ?MACHINERY_SCHEMA
     }).

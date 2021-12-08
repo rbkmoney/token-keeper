@@ -3,7 +3,7 @@
 
 %% Behaviour
 
--export([get_authdata/2]).
+-export([get_authdata/3]).
 
 %% API types
 
@@ -17,7 +17,7 @@
 
 %% Internal types
 
--type decoded_authdata() :: tk_authdata:prototype().
+-type authdata() :: tk_authdata:prototype().
 
 %%
 
@@ -27,13 +27,13 @@
 
 %% Behaviour functions
 
--spec get_authdata(tk_token:token_data(), opts()) -> decoded_authdata() | undefined.
-get_authdata(#{payload := TokenPayload}, Opts) ->
+-spec get_authdata(tk_token:token_data(), opts(), woody_context:ctx()) -> authdata() | undefined.
+get_authdata(#{payload := TokenPayload}, Opts, _Context) ->
     case decode_bouncer_claim(TokenPayload) of
         {ok, ContextFragment} ->
             create_authdata(ContextFragment, create_metadata(TokenPayload, Opts));
         {error, Reason} ->
-            _ = logger:warning("Failed attempt to decode bouncer context from claims: ~p", [Reason]),
+            _ = logger:warning("Failed attempt to decode bouncer context from legacy claims: ~p", [Reason]),
             undefined
     end.
 

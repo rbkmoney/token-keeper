@@ -17,9 +17,9 @@
 }.
 
 -type handler_opts() ::
-    tk_handler_authenticator:handler_opts()
-    | tk_handler_authority_ephemeral:handler_opts()
-    | tk_handler_authority_offline:handler_opts().
+    tk_handler_authenticator:opts()
+    | tk_handler_authority_ephemeral:opts()
+    | tk_handler_authority_offline:opts().
 
 -type opts() :: #{
     handler := {module(), handler_opts()},

@@ -144,9 +144,9 @@ init_per_group(external_detect_token = Name, C) ->
             },
             authorities => #{
                 ?TK_AUTHORITY_KEYCLOAK =>
-                    {external, #{
+                    #{
                         sources => [extract_method_detect_token()]
-                    }}
+                    }
             }
         }},
         {tokens, #{
@@ -174,9 +174,9 @@ init_per_group(external_invoice_template_access_token = Name, C) ->
             },
             authorities => #{
                 ?TK_AUTHORITY_CAPI =>
-                    {external, #{
+                    #{
                         sources => [extract_method_invoice_tpl_token()]
-                    }}
+                    }
             }
         }},
         {tokens, #{
@@ -204,7 +204,7 @@ init_per_group(external_legacy_claim = Name, C) ->
             },
             authorities => #{
                 ?TK_AUTHORITY_CAPI =>
-                    {external, #{
+                    #{
                         sources => [
                             {legacy_claim, #{
                                 metadata_mappings => #{
@@ -213,7 +213,7 @@ init_per_group(external_legacy_claim = Name, C) ->
                                 }
                             }}
                         ]
-                    }}
+                    }
             }
         }},
         {tokens, #{
@@ -242,13 +242,13 @@ init_per_group(blacklist = Name, C) ->
                 },
                 authorities => #{
                     <<"blacklisting_authority">> =>
-                        {external, #{
+                        #{
                             sources => [extract_method_detect_token()]
-                        }},
+                        },
                     ?TK_AUTHORITY_CAPI =>
-                        {external, #{
+                        #{
                             sources => [extract_method_detect_token()]
-                        }}
+                        }
                 }
             }},
             {tokens, #{
@@ -281,7 +281,11 @@ init_per_group(ephemeral = Name, C) ->
                 path => <<"/v2/authenticator">>
             },
             authorities => #{
-                ?TK_AUTHORITY_CAPI => {ephemeral, #{}}
+                ?TK_AUTHORITY_CAPI => #{
+                    sources => [
+                        {claim, #{}}
+                    ]
+                }
             }
         }},
         {authorities, #{
@@ -324,9 +328,13 @@ init_per_group(offline = Name, C) ->
             },
             authorities => #{
                 ?TK_AUTHORITY_APIKEYMGMT =>
-                    {offline, #{
-                        storage_name => ?TK_AUTHORITY_APIKEYMGMT
-                    }}
+                    #{
+                        sources => [
+                            {storage, #{
+                                name => ?TK_AUTHORITY_APIKEYMGMT
+                            }}
+                        ]
+                    }
             }
         }},
         {authorities, #{

@@ -5,7 +5,7 @@
 
 %% Behaviour
 
--export([get_authdata/2]).
+-export([get_authdata/3]).
 
 %% API types
 
@@ -17,12 +17,12 @@
 
 %% Internal types
 
--type extracted_authdata() :: tk_authdata:prototype().
+-type authdata() :: tk_authdata:prototype().
 
 %% Behaviour functions
 
--spec get_authdata(tk_token:token_data(), opts()) -> extracted_authdata() | undefined.
-get_authdata(VerifiedToken, Opts) ->
+-spec get_authdata(tk_token:token_data(), opts(), woody_context:ctx()) -> authdata() | undefined.
+get_authdata(VerifiedToken, Opts, _Context) ->
     Methods = get_extractor_methods(Opts),
     case extract_context_with(Methods, VerifiedToken) of
         {Context, Metadata} ->
