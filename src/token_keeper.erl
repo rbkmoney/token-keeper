@@ -76,7 +76,6 @@ get_woody_handlers(AuditPulse) ->
         get_authority_handler(genlib_app:env(?MODULE, authorities, #{}), AuditPulse)
     ]).
 
--spec get_authenticator_handler(_, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
 get_authenticator_handler(Config, AuditPulse) ->
     tk_handler:get_authenticator_handler(Config, AuditPulse).
 

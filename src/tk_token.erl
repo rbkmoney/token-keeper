@@ -9,8 +9,9 @@
 -callback issue(token_data()) -> {ok, token_string()} | {error, Reason :: _}.
 
 -type tokens_config() :: #{token_type() => token_opts()}.
-
 -type token_opts() :: tk_token_jwt:opts().
+
+-export_type([tokens_config/0]).
 
 %%
 

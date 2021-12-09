@@ -37,11 +37,62 @@
 -export_type([opts/0]).
 -export_type([state/0]).
 
+%% Config types
+
+-type service_handler_configuration() :: #{
+    path => binary()
+}.
+
+-type authenticator_opts() :: #{
+    service => service_handler_configuration(),
+    authorities => authenticator_authoritites()
+}.
+
+-type authenticator_authoritites() :: #{authority_id() => authenticator_authority()}.
+-type authenticator_authority() :: #{
+    sources => [tk_authdata_source:authdata_source()]
+}.
+
+-type authority_opts() :: #{
+    service => service_handler_configuration(),
+    type => authority_type()
+}.
+
+-type authority_type() :: ephemeral_authority_type() | offline_authority_type().
+
+-type ephemeral_authority_type() ::
+    {ephemeral, #{
+        token => authority_token_config()
+    }}.
+
+-type offline_authority_type() ::
+    {offline, #{
+        token => authority_token_config(),
+        storage => authority_storage_config()
+    }}.
+
+-type authority_token_config() :: #{
+    type => tk_token:token_type()
+}.
+
+-type authority_storage_config() :: #{
+    name => tk_storage:storage_name()
+}.
+
+-export_type([authenticator_opts/0]).
+-export_type([authority_opts/0]).
+
+%%
+
+-type authority_id() :: tk_authdata:authority_id().
+
+%%
+
 -define(DEFAULT_HANDLING_TIMEOUT, 30000).
 
 %%
 
--spec get_authenticator_handler(_, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
+-spec get_authenticator_handler(authenticator_opts(), tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
 get_authenticator_handler(Opts, AuditPulse) ->
     get_http_handler(
         maps:get(service, Opts),
@@ -49,7 +100,8 @@ get_authenticator_handler(Opts, AuditPulse) ->
         AuditPulse
     ).
 
--spec get_authority_handler(_, _, tk_pulse:handlers()) -> woody:http_handler(woody:th_handler()).
+-spec get_authority_handler(authority_id(), authority_opts(), tk_pulse:handlers()) ->
+    woody:http_handler(woody:th_handler()).
 get_authority_handler(AuthorityID, Opts, AuditPulse) ->
     get_http_handler(
         maps:get(service, Opts),

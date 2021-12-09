@@ -34,9 +34,11 @@
     type := tk_token:token_type()
 }.
 
+-type authority_id() :: tk_authdata:authority_id().
+
 %%
 
--spec get_handler_spec(woody:func(), handler_config()) -> woody:th_handler().
+-spec get_handler_spec(authority_id(), handler_config()) -> woody:th_handler().
 get_handler_spec(AuthorityID, Config) ->
     Token = maps:get(token, Config),
     Storage = maps:get(storage, Config),
