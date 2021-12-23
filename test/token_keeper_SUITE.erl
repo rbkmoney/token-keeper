@@ -924,10 +924,11 @@ start_keeper(Env, BlacklistPath) ->
                     backend => #{
                         type => standard_io
                     },
-                    formatter => {logger_logstash_formatter, #{
-                        chars_limit => 4096,
-                        depth => unlimited
-                    }}
+                    formatter =>
+                        {logger_logstash_formatter, #{
+                            chars_limit => 4096,
+                            depth => unlimited
+                        }}
                 }
             }},
             {machinegun, #{
