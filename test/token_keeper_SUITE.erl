@@ -918,6 +918,19 @@ start_keeper(Env, BlacklistPath) ->
             {blacklist, #{
                 path => BlacklistPath
             }},
+            {audit, #{
+                log => #{
+                    level => notice,
+                    backend => #{
+                        type => standard_io
+                    },
+                    formatter =>
+                        {logger_logstash_formatter, #{
+                            chars_limit => 4096,
+                            depth => unlimited
+                        }}
+                }
+            }},
             {machinegun, #{
                 processor => #{
                     path => <<"/v2/stateproc">>
