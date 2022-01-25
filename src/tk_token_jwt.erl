@@ -246,7 +246,7 @@ construct_token_data(Claims, SourceContext, AuthorityID) ->
     #{
         id => maps:get(?CLAIM_TOKEN_ID, Claims),
         type => jwt,
-        expiration => decode_expiration(maps:get(?CLAIM_EXPIRES_AT, Claims)),
+        expiration => decode_expiration(maps:get(?CLAIM_EXPIRES_AT, Claims, 0)),
         payload => Claims,
         authority_id => AuthorityID,
         source_context => SourceContext
