@@ -50,7 +50,7 @@ handle_function('Create' = Op, {ContextFragment, Metadata}, Opts, State) ->
     _ = pulse_op_stated(Op, State),
     AuthDataPrototype = create_auth_data(ContextFragment, Metadata),
     Claims = tk_claim_utils:encode_authdata(AuthDataPrototype),
-    {ok, Token} = tk_token_jwt:issue(create_token_data(Claims, Opts)),
+    {ok, Token} = tk_token:issue(create_token_data(Claims, Opts)),
     EncodedAuthData = encode_auth_data(AuthDataPrototype#{token => Token}),
     _ = pulse_op_succeeded(Op, State),
     {ok, EncodedAuthData}.
