@@ -1,11 +1,13 @@
 -module(tk_token).
 
+-include("token_compact.hrl").
+
 -export([child_specs/1]).
 -export([verify/2]).
 -export([issue/1]).
 
 -callback child_spec(token_opts()) -> supervisor:child_spec().
--callback verify(token_string(), source_context()) -> {ok, token_data()} | {error, Reason :: _}.
+-callback verify(token_string()) -> {ok, token_data()} | {error, Reason :: _}.
 -callback issue(token_data()) -> {ok, token_string()} | {error, Reason :: _}.
 
 -type tokens_config() :: #{token_type() => token_opts()}.
@@ -26,8 +28,8 @@
 }.
 
 -type token_id() :: binary().
--type token_type() :: jwt.
--type expiration() :: unlimited | non_neg_integer().
+-type token_type() :: jwt | compact.
+-type expiration() :: unlimited | pos_integer().
 -type payload() :: map().
 -type authority_id() :: tk_authdata:authority_id().
 -type source_context() :: #{
@@ -77,15 +79,16 @@ issue(#{type := TokenType} = TokenData) ->
 
 %%
 
-%% Nothing else is defined or supported
+determine_token_type(<<?TOKEN_COMPACT_HDR_SIGN, _/binary>>) ->
+    {ok, compact};
 determine_token_type(_) ->
     {ok, jwt}.
 
 verify(TokenType, Token, SourceContext) ->
     Handler = get_token_handler(TokenType),
-    case Handler:verify(Token, SourceContext) of
+    case Handler:verify(Token) of
         {ok, VerifiedToken} ->
-            check_blacklist(VerifiedToken);
+            check_blacklist(VerifiedToken#{source_context => SourceContext});
         {error, Reason} ->
             {error, {verification_failed, Reason}}
     end.
@@ -103,4 +106,6 @@ issue(TokenType, TokenData) ->
     Handler:issue(TokenData).
 
 get_token_handler(jwt) ->
-    tk_token_jwt.
+    tk_token_jwt;
+get_token_handler(compact) ->
+    tk_token_compact.
